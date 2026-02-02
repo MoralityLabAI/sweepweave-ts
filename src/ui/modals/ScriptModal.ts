@@ -18,12 +18,16 @@ import {
   createDefaultScriptNode,
   serializeScript,
   deserializeScript,
-} from '../scriptAst';
+} from '../../scriptAst';
 
 interface ModalOptions {
   storyworld: Storyworld;
-  initialScript: ScriptManager | null;
-  onConfirm: (script: ScriptManager, ast: ScriptNode) => void;
+  mode?: 'script' | 'bool';
+  initialScript?: ScriptManager | null;
+  initialAst?: ScriptNode | null;
+  initialBoolAst?: BoolNode | null;
+  onConfirm?: (script: ScriptManager, ast: ScriptNode) => void;
+  onConfirmBool?: (ast: BoolNode) => void;
 }
 
 const scriptPaletteItems: ScriptNode['type'][] = [
@@ -406,8 +410,14 @@ function replaceNodeByPath(root: ScriptNode, path: string[], next: ScriptNode | 
 }
 
 export function openScriptModal(options: ModalOptions): void {
-  const { storyworld, initialScript, onConfirm } = options;
-  let ast = astFromScript(initialScript, storyworld);
+  const { storyworld } = options;
+  const rootMode = options.mode ?? 'script';
+  let ast = rootMode === 'script'
+    ? (options.initialAst ?? astFromScript(options.initialScript ?? null, storyworld))
+    : createDefaultScriptNode();
+  let boolRoot = rootMode === 'bool'
+    ? (options.initialBoolAst ?? createDefaultBoolNode())
+    : createDefaultBoolNode();
   let selectedPath: string[] = [];
 
   const overlay = el('div', { className: 'sw-modal-overlay' });
@@ -468,7 +478,11 @@ export function openScriptModal(options: ModalOptions): void {
       }
       return li;
     };
-    list.appendChild(renderNode(ast, [], 'script'));
+    if (rootMode === 'script') {
+      list.appendChild(renderNode(ast, [], 'script'));
+    } else {
+      list.appendChild(renderNode(boolRoot, [], 'bool'));
+    }
     treePane.appendChild(list);
   };
 
@@ -477,7 +491,9 @@ export function openScriptModal(options: ModalOptions): void {
     const palette = el('div', { className: 'sw-palette' });
     const title = el('div', { className: 'sw-section-header', text: 'Operators' });
     palette.appendChild(title);
-    const selection = getNodeByPath(ast, selectedPath);
+    const selection = rootMode === 'script'
+      ? getNodeByPath(ast, selectedPath)
+      : { kind: 'bool', node: boolRoot };
     if (selection.kind === 'script') {
       scriptPaletteItems.forEach((item) => {
         const button = el('button', { text: nodeLabels[item] });
@@ -496,7 +512,11 @@ export function openScriptModal(options: ModalOptions): void {
             item === 'Constant'
               ? { type: 'Constant', value: false }
               : { type: 'SpoolActive', spoolId: storyworld.spools[0]?.id ?? '' };
-          ast = replaceNodeByPath(ast, selectedPath, next);
+          if (rootMode === 'bool') {
+            boolRoot = next;
+          } else {
+            ast = replaceNodeByPath(ast, selectedPath, next);
+          }
           render();
         });
         palette.appendChild(button);
@@ -558,7 +578,11 @@ export function openScriptModal(options: ModalOptions): void {
         const checkbox = el('input', { attrs: { type: 'checkbox' } }) as HTMLInputElement;
         checkbox.checked = selectedNode.value;
         checkbox.addEventListener('change', () => {
-          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, value: checkbox.checked });
+          if (rootMode === 'bool') {
+            boolRoot = { ...selectedNode, value: checkbox.checked };
+          } else {
+            ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, value: checkbox.checked });
+          }
           renderTree();
         });
         inspector.append(el('div', { className: 'sw-section-header', text: 'Boolean Constant' }), checkbox);
@@ -570,7 +594,11 @@ export function openScriptModal(options: ModalOptions): void {
           spoolSelect.appendChild(opt);
         }
         spoolSelect.addEventListener('change', () => {
-          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, spoolId: spoolSelect.value });
+          if (rootMode === 'bool') {
+            boolRoot = { ...selectedNode, spoolId: spoolSelect.value };
+          } else {
+            ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, spoolId: spoolSelect.value });
+          }
           renderTree();
         });
         inspector.append(el('div', { className: 'sw-section-header', text: 'Spool Active' }), spoolSelect);
@@ -587,8 +615,12 @@ export function openScriptModal(options: ModalOptions): void {
   };
 
   okButton.addEventListener('click', () => {
-    const script = scriptFromAst(ast, storyworld);
-    onConfirm(script, ast);
+    if (rootMode === 'script') {
+      const script = scriptFromAst(ast, storyworld);
+      options.onConfirm?.(script, ast);
+    } else {
+      options.onConfirmBool?.(boolRoot);
+    }
     document.body.removeChild(overlay);
   });
   cancelButton.addEventListener('click', () => {

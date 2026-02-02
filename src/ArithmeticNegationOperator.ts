@@ -16,7 +16,7 @@ export class ArithmeticNegationOperator extends SWOperator {
     public override get_value(): number {
         const value = this.evaluate_operand_at_index(0);
         if (typeof value === "number") {
-            return -value;
+            return 1 - value;
         }
         return 0;
     }

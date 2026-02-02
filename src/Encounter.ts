@@ -2,6 +2,7 @@ import { Option } from './Option';
 import { Actor } from './Actor';
 import { ScriptManager } from './ScriptManager';
 import { Prerequisite } from './Prerequisite';
+import { BoolNode, ScriptNode, serializeBool, serializeScript } from './scriptAst';
 
 export class Encounter {
     public id: string = '';
@@ -19,6 +20,8 @@ export class Encounter {
     public desirability_script: ScriptManager = new ScriptManager();
     public acceptability_script: ScriptManager = new ScriptManager();
     public occurrences: number = 0;
+    public availability_script: BoolNode | null = { type: 'Constant', value: true };
+    public desirability_ast: ScriptNode | null = { type: 'Constant', value: 0.5 };
 
     constructor(id: string = '', title: string = '') {
         this.id = id;
@@ -38,6 +41,8 @@ export class Encounter {
                 value: this.main_text,
             },
             options: this.options.map((option) => option.compile()),
+            availability_ast: this.availability_script ? serializeBool(this.availability_script) : null,
+            desirability_ast: this.desirability_ast ? serializeScript(this.desirability_ast) : null,
         }
     }
 
@@ -57,5 +62,7 @@ export class Encounter {
         this.desirability_script = original.desirability_script;
         this.acceptability_script = original.acceptability_script;
         this.occurrences = original.occurrences;
+        this.availability_script = original.availability_script ? { ...original.availability_script } : null;
+        this.desirability_ast = original.desirability_ast ? { ...original.desirability_ast } : null;
     }
 }

@@ -10,10 +10,11 @@ import { Encounter } from '../../Encounter';
 import { Option } from '../../Option';
 import { Reaction } from '../../Reaction';
 import { UUID } from '../../UUID';
-import { BNumberConstant } from '../../BNumberConstant';
-import { NudgeOperator } from '../../NudgeOperator';
-import { SWScriptElement } from '../../SWScriptElement';
 import { openScriptModal } from '../modals/ScriptModal';
+import { openEffectModal } from '../modals/EffectModal';
+import { evaluateBool } from '../../scriptAst';
+import { Storyworld } from '../../Storyworld';
+import { Effect, formatEffect, reorderEffects } from '../../Effect';
 
 function moveItem<T>(items: T[], from: number, to: number): void {
   if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return;
@@ -21,11 +22,18 @@ function moveItem<T>(items: T[], from: number, to: number): void {
   items.splice(to, 0, item);
 }
 
-function formatEffect(effect: SWScriptElement): string {
-  if (effect instanceof NudgeOperator) {
-    return effect.data_to_string();
+function reactionLabel(reaction: Reaction): string {
+  if (reaction.label && reaction.label.trim().length > 0) {
+    return reaction.label;
   }
-  return effect.data_to_string();
+  const firstLine = reaction.text.split('\n')[0]?.trim();
+  if (firstLine) return firstLine;
+  return '[Blank Reaction]';
+}
+
+function optionVisible(option: Option, storyworld: Storyworld): boolean {
+  if (!option.visibility_ast) return true;
+  return evaluateBool(option.visibility_ast, { storyworld });
 }
 
 export function renderEncountersTab(store: Store): HTMLElement {
@@ -142,6 +150,39 @@ export function renderEncountersTab(store: Store): HTMLElement {
     touchStoryworld(storyworld);
   });
 
+  const encounterScriptRow = el('div', { className: 'sw-row' });
+  const availabilityBtn = el('button', { text: 'Availability Script…' });
+  const desirabilityBtn = el('button', { text: 'Desirability Script…' });
+  encounterScriptRow.append(availabilityBtn, desirabilityBtn);
+
+  availabilityBtn.addEventListener('click', () => {
+    const encounter = getSelectedEncounter(store.getState());
+    if (!encounter) return;
+    openScriptModal({
+      storyworld,
+      mode: 'bool',
+      initialBoolAst: encounter.availability_script ?? undefined,
+      onConfirmBool: (ast) => {
+        encounter.availability_script = ast;
+        touchStoryworld(storyworld);
+      },
+    });
+  });
+
+  desirabilityBtn.addEventListener('click', () => {
+    const encounter = getSelectedEncounter(store.getState());
+    if (!encounter) return;
+    openScriptModal({
+      storyworld,
+      mode: 'script',
+      initialAst: encounter.desirability_ast ?? undefined,
+      onConfirm: (_script, ast) => {
+        encounter.desirability_ast = ast;
+        touchStoryworld(storyworld);
+      },
+    });
+  });
+
   const encounterText = el('textarea', { attrs: { rows: '10' }, className: 'sw-textarea' }) as HTMLTextAreaElement;
   encounterText.value = selectedEncounter?.main_text ?? '';
   encounterText.addEventListener('input', () => {
@@ -158,12 +199,15 @@ export function renderEncountersTab(store: Store): HTMLElement {
   const optionUpBtn = el('button', { text: '↑' });
   const optionDownBtn = el('button', { text: '↓' });
   const optionHandBtn = el('button', { text: '☞' });
-  optionButtons.append(addOptionBtn, removeOptionBtn, optionUpBtn, optionDownBtn, optionHandBtn);
+  const optionVisibilityBtn = el('button', { text: 'Visibility Script…' });
+  optionButtons.append(addOptionBtn, removeOptionBtn, optionUpBtn, optionDownBtn, optionHandBtn, optionVisibilityBtn);
 
   const optionList = el('select', { attrs: { size: '6' }, className: 'sw-listbox' }) as HTMLSelectElement;
   if (selectedEncounter) {
     for (const opt of selectedEncounter.options) {
-      const optNode = el('option', { text: opt.text || '(Option)', attrs: { value: opt.id } }) as HTMLOptionElement;
+      const visible = optionVisible(opt, storyworld);
+      const label = `${visible ? '' : '[hidden] '}${opt.text || '(Option)'}`;
+      const optNode = el('option', { text: label, attrs: { value: opt.id } }) as HTMLOptionElement;
       if (opt.id === state.selections.optionId) {
         optNode.selected = true;
       }
@@ -180,7 +224,8 @@ export function renderEncountersTab(store: Store): HTMLElement {
     option.text = optionText.value;
     const selectedIndex = optionList.selectedIndex;
     if (selectedIndex >= 0) {
-      optionList.options[selectedIndex].text = option.text || '(Option)';
+      const visible = optionVisible(option, storyworld);
+      optionList.options[selectedIndex].text = `${visible ? '' : '[hidden] '}${option.text || '(Option)'}`;
     }
     touchStoryworld(storyworld);
   });
@@ -221,7 +266,22 @@ export function renderEncountersTab(store: Store): HTMLElement {
     store.selectOption(option.id);
   });
 
-  centerCol.append(encounterTitle, encounterText, optionsHeader, optionButtons, optionList, optionText);
+  optionVisibilityBtn.addEventListener('click', () => {
+    const option = getSelectedOption(store.getState());
+    if (!option) return;
+    openScriptModal({
+      storyworld,
+      mode: 'bool',
+      initialBoolAst: option.visibility_ast ?? undefined,
+      onConfirmBool: (ast) => {
+        option.visibility_ast = ast;
+        touchStoryworld(storyworld);
+        store.setState({ storyworld });
+      },
+    });
+  });
+
+  centerCol.append(encounterTitle, encounterScriptRow, encounterText, optionsHeader, optionButtons, optionList, optionText);
 
   const reactionsHeader = el('div', { className: 'sw-section-header' }, el('span', { text: 'Reactions:' }));
   const reactionButtons = el('div', { className: 'sw-button-row' });
@@ -229,13 +289,13 @@ export function renderEncountersTab(store: Store): HTMLElement {
   const removeReactionBtn = el('button', { text: '-' });
   const reactionUpBtn = el('button', { text: '↑' });
   const reactionDownBtn = el('button', { text: '↓' });
-  const reactionScriptBtn = el('button', { text: 'Script' });
+  const reactionScriptBtn = el('button', { text: 'Inclination Script…' });
   reactionButtons.append(addReactionBtn, removeReactionBtn, reactionUpBtn, reactionDownBtn, reactionScriptBtn);
 
   const reactionList = el('select', { attrs: { size: '6' }, className: 'sw-listbox' }) as HTMLSelectElement;
   if (selectedOption) {
     for (const rxn of selectedOption.reactions) {
-      const rxnNode = el('option', { text: rxn.text || '(Reaction)', attrs: { value: rxn.id } }) as HTMLOptionElement;
+      const rxnNode = el('option', { text: reactionLabel(rxn), attrs: { value: rxn.id } }) as HTMLOptionElement;
       if (rxn.id === state.selections.reactionId) {
         rxnNode.selected = true;
       }
@@ -252,7 +312,7 @@ export function renderEncountersTab(store: Store): HTMLElement {
     reaction.text = reactionText.value;
     const selectedIndex = reactionList.selectedIndex;
     if (selectedIndex >= 0) {
-      reactionList.options[selectedIndex].text = reaction.text || '(Reaction)';
+      reactionList.options[selectedIndex].text = reactionLabel(reaction);
     }
     touchStoryworld(storyworld);
   });
@@ -280,9 +340,10 @@ export function renderEncountersTab(store: Store): HTMLElement {
     if (!reaction) return;
     openScriptModal({
       storyworld,
-      initialScript: reaction.desirability_script ?? null,
-      onConfirm: (script) => {
-        reaction.desirability_script = script;
+      mode: 'script',
+      initialAst: reaction.inclination_script ?? undefined,
+      onConfirm: (_script, ast) => {
+        reaction.inclination_script = ast;
         touchStoryworld(storyworld);
       },
     });
@@ -333,25 +394,47 @@ export function renderEncountersTab(store: Store): HTMLElement {
   effectsButtons.append(addEffectBtn, removeEffectBtn, effectUpBtn, effectDownBtn);
 
   const effectsList = el('select', { attrs: { size: '5' }, className: 'sw-listbox' }) as HTMLSelectElement;
-  const effects = selectedReaction?.after_effects ?? [];
+  const effects: Effect[] = selectedReaction?.effects ?? [];
   effects.forEach((effect, index) => {
     const option = el('option', { text: formatEffect(effect), attrs: { value: String(index) } }) as HTMLOptionElement;
     effectsList.appendChild(option);
+  });
+  effectsList.addEventListener('dblclick', () => {
+    const reaction = getSelectedReaction(store.getState());
+    if (!reaction) return;
+    const index = effectsList.selectedIndex;
+    if (index < 0) return;
+    openEffectModal({
+      storyworld,
+      initialEffect: reaction.effects[index],
+      onConfirm: (effect) => {
+        const next = [...reaction.effects];
+        next[index] = effect;
+        reaction.effects = next;
+        touchStoryworld(storyworld);
+        store.setState({ storyworld });
+      },
+    });
   });
 
   addEffectBtn.addEventListener('click', () => {
     const reaction = getSelectedReaction(store.getState());
     if (!reaction) return;
-    reaction.after_effects.push(new NudgeOperator(new BNumberConstant(0), new BNumberConstant(0)));
-    touchStoryworld(storyworld);
-    store.setState({ storyworld });
+    openEffectModal({
+      storyworld,
+      onConfirm: (effect) => {
+        reaction.effects = [...reaction.effects, effect];
+        touchStoryworld(storyworld);
+        store.setState({ storyworld });
+      },
+    });
   });
   removeEffectBtn.addEventListener('click', () => {
     const reaction = getSelectedReaction(store.getState());
     if (!reaction) return;
     const index = effectsList.selectedIndex;
     if (index < 0) return;
-    reaction.after_effects.splice(index, 1);
+    reaction.effects = reaction.effects.filter((_, i) => i !== index);
     touchStoryworld(storyworld);
     store.setState({ storyworld });
   });
@@ -359,7 +442,7 @@ export function renderEncountersTab(store: Store): HTMLElement {
     const reaction = getSelectedReaction(store.getState());
     if (!reaction) return;
     const index = effectsList.selectedIndex;
-    moveItem(reaction.after_effects, index, index - 1);
+    reaction.effects = reorderEffects(reaction.effects, index, index - 1);
     touchStoryworld(storyworld);
     store.setState({ storyworld });
   });
@@ -367,7 +450,7 @@ export function renderEncountersTab(store: Store): HTMLElement {
     const reaction = getSelectedReaction(store.getState());
     if (!reaction) return;
     const index = effectsList.selectedIndex;
-    moveItem(reaction.after_effects, index, index + 1);
+    reaction.effects = reorderEffects(reaction.effects, index, index + 1);
     touchStoryworld(storyworld);
     store.setState({ storyworld });
   });

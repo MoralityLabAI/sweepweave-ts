@@ -6,6 +6,8 @@ import { Option } from './Option';
 import { Reaction } from './Reaction';
 import { Prerequisite } from './Prerequisite';
 import { ScriptManager } from './ScriptManager';
+import { deserializeBool, deserializeScript } from './scriptAst';
+import { deserializeEffect } from './Effect';
 
 export interface UniqueIdSeeds {
     character: number;
@@ -223,6 +225,12 @@ export class Storyworld {
                 } else {
                     encounter.main_text = encounterData.main_text ?? "";
                 }
+                if (encounterData.availability_ast) {
+                    encounter.availability_script = deserializeBool(encounterData.availability_ast);
+                }
+                if (encounterData.desirability_ast) {
+                    encounter.desirability_ast = deserializeScript(encounterData.desirability_ast);
+                }
                 if (Array.isArray(encounterData.prerequisites)) {
                     encounter.prerequisites = this.load_prerequisites(encounterData.prerequisites);
                 }
@@ -242,6 +250,9 @@ export class Storyworld {
                         option.parent_encounter = encounter;
                         if (optionData.text_script && typeof optionData.text_script === "object") {
                             option.text = optionData.text_script.value ?? option.text;
+                        }
+                        if (optionData.visibility_ast) {
+                            option.visibility_ast = deserializeBool(optionData.visibility_ast);
                         }
                         if (Array.isArray(optionData.prerequisites)) {
                             option.prerequisites = this.load_prerequisites(optionData.prerequisites);
@@ -263,10 +274,19 @@ export class Storyworld {
                                 if (reactionData.text_script && typeof reactionData.text_script === "object") {
                                     reaction.text = reactionData.text_script.value ?? reaction.text;
                                 }
+                                if (reactionData.label) {
+                                    reaction.label = reactionData.label;
+                                }
                                 reaction.consequence_id = reactionData.consequence_id ?? reactionData.consequence ?? null;
                                 reaction.weight = typeof reactionData.weight === "number"
                                     ? reactionData.weight
                                     : (typeof reactionData.probability === "number" ? reactionData.probability : 1);
+                                if (reactionData.inclination_ast) {
+                                    reaction.inclination_script = deserializeScript(reactionData.inclination_ast);
+                                }
+                                if (Array.isArray(reactionData.effects)) {
+                                    reaction.effects = reactionData.effects.map((effect: any) => deserializeEffect(effect));
+                                }
                                 if (Array.isArray(reactionData.after_effects)) {
                                     const effects_manager = new ScriptManager();
                                     effects_manager.load_from_json_v0_0_21(reactionData.after_effects, this);
