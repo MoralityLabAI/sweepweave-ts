@@ -326,12 +326,15 @@ export class Storyworld {
         this.spool_directory.clear();
         if (Array.isArray(data.spools)) {
             for (const spoolData of data.spools) {
-                const spool = new Spool(spoolData.id ?? "", spoolData.spool_type ?? spoolData.name ?? "");
+                const spoolName = spoolData.spool_name ?? spoolData.spool_type ?? spoolData.name ?? "";
+                const spool = new Spool(spoolData.id ?? "", spoolName);
                 spool.active_at_start = Boolean(spoolData.active_at_start);
                 spool.creation_index = spoolData.creation_index ?? 0;
                 spool.creation_time = spoolData.creation_time ?? 0;
                 spool.modified_time = spoolData.modified_time ?? 0;
                 spool.encounter_ids = Array.isArray(spoolData.encounters) ? [...spoolData.encounters] : [];
+                spool.spool_name = spoolName;
+                spool.name = spoolName;
                 this.spools.push(spool);
                 this.spool_directory.set(spool.id, spool);
             }

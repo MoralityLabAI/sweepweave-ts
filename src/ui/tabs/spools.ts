@@ -20,7 +20,8 @@ export function renderSpoolsTab(store: Store): HTMLElement {
 
   const spoolList = el('select', { attrs: { size: '12' }, className: 'sw-listbox' }) as HTMLSelectElement;
   for (const spool of storyworld.spools) {
-    const opt = el('option', { text: spool.name || spool.id, attrs: { value: spool.id } }) as HTMLOptionElement;
+    const label = spool.spool_name || spool.name || spool.id;
+    const opt = el('option', { text: label, attrs: { value: spool.id } }) as HTMLOptionElement;
     if (spool.id === state.selections.spoolId) opt.selected = true;
     spoolList.appendChild(opt);
   }
@@ -46,7 +47,7 @@ export function renderSpoolsTab(store: Store): HTMLElement {
 
   const topRow = el('div', { className: 'sw-row' });
   const nameInput = el('input', {
-    attrs: { type: 'text', value: selectedSpool?.name ?? '' },
+    attrs: { type: 'text', value: selectedSpool?.spool_name ?? selectedSpool?.name ?? '' },
     className: 'sw-title-input',
   }) as HTMLInputElement;
   topRow.append(el('label', { text: 'Spool Name' }), nameInput);
@@ -54,6 +55,7 @@ export function renderSpoolsTab(store: Store): HTMLElement {
   nameInput.addEventListener('input', () => {
     const spool = getSelectedSpool(store.getState());
     if (!spool) return;
+    spool.spool_name = nameInput.value;
     spool.name = nameInput.value;
     touchStoryworld(storyworld);
   });
