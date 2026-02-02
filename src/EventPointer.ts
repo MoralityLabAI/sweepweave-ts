@@ -122,14 +122,13 @@ export class EventPointer extends SWPointer {
         return output;
     }
 
-    public override set_as_copy_of(original: this): void {
-        if (original instanceof EventPointer) {
-            this.negated = original.negated;
-            this.spool = original.spool;
-            this.encounter = original.encounter;
-            this.option = original.option;
-            this.reaction = original.reaction;
-        }
+    public override set_as_copy_of(original?: this): void {
+        if (!(original instanceof EventPointer)) return;
+        this.negated = original.negated;
+        this.spool = original.spool;
+        this.encounter = original.encounter;
+        this.option = original.option;
+        this.reaction = original.reaction;
     }
 
     public override remap(): boolean {

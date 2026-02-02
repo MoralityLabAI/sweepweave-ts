@@ -56,7 +56,8 @@ export class AssignmentOperator extends SWOperator {
         return false; // An error occurred.
     }
 
-    public set_as_copy_of(original: AssignmentOperator): boolean {
+    public override set_as_copy_of(original?: AssignmentOperator): boolean {
+        if (!(original instanceof AssignmentOperator)) return false;
         let success = true;
         if (this.operand_0 instanceof BNumberPointer && original.operand_0 instanceof BNumberPointer) {
             this.operand_0.set_as_copy_of(original.operand_0);
@@ -119,13 +120,11 @@ export class AssignmentOperator extends SWOperator {
         return result;
     }
 
-    public override compile(): Record<string, any> | null {
-        if (!(this.operand_0 instanceof BNumberPointer && this.operand_1 instanceof ScriptManager)) {
-            return null;
-        }
+    public override compile(): Record<string, any> {
+        // Always return an object for serialization. Invalid operands compile to null.
         const result: Record<string, any> = {};
-        result["Set"] = this.operand_0.compile();
-        result["to"] = this.operand_1.compile();
+        result["Set"] = this.operand_0 instanceof BNumberPointer ? this.operand_0.compile() : null;
+        result["to"] = this.operand_1 instanceof ScriptManager ? this.operand_1.compile() : null;
         return result;
     }
     

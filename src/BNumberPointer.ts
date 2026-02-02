@@ -85,7 +85,8 @@ export class BNumberPointer extends SWPointer {
         return output;
     }
 
-    public override set_as_copy_of(original: this): void {
+    public override set_as_copy_of(original?: this): void {
+        if (!original) return;
         this.character = original.character;
         this.coefficient = original.coefficient;
         this.keyring = [...original.keyring];

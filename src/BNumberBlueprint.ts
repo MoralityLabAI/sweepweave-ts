@@ -1,6 +1,6 @@
 import { Storyworld } from "./Storyworld";
 import { Actor } from "./Actor";
-import { v4 as uuidv4 } from 'uuid';
+import { UUID } from "./UUID";
 
 export enum possible_attribution_targets {
     STORYWORLD,
@@ -22,7 +22,7 @@ export class BNumberBlueprint {
 
     constructor(storyworld: Storyworld, property_name: string, id: string | null = null, depth: number = 0, default_value: number = 0) {
         this.storyworld = storyworld;
-        this.id = id || uuidv4();
+        this.id = id || UUID.v4();
         this.property_name = property_name;
         this.depth = depth;
         this.default_value = default_value;

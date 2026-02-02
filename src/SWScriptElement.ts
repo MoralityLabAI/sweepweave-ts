@@ -24,7 +24,14 @@ export class SWScriptElement {
         // to be overridden
     }
 
-    public set_as_copy_of(): void {
+    /**
+     * Copies fields from another instance.
+     *
+     * Many of the ported GDScript classes expect an explicit `original` parameter
+     * (e.g. `set_as_copy_of(original)`), while a few call it with no args.
+     * Keep the signature permissive to allow both styles.
+     */
+    public set_as_copy_of(_original?: unknown): void {
         // to be overridden
     }
 
