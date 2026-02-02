@@ -134,7 +134,7 @@ export class Storyworld {
     public load_from_dict_v0_0_21(data: any): void {
         this.storyworld_title = data.storyworld_title || "";
         this.storyworld_author = data.storyworld_author || "";
-        this.sweepweave_version_number = data.sweepweave_version || "";
+        this.sweepweave_version_number = data.sweepweave_version ?? this.sweepweave_version_number ?? "";
         this.ifid = data.IFID || "";
         this.storyworld_debug_mode_on = Boolean(data.debug_mode);
         this.storyworld_display_mode = data.display_mode ?? "";

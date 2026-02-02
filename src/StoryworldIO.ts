@@ -48,8 +48,9 @@ export class StoryworldIO {
                 return false;
             }
         } else {
-            console.error("Cannot load project file: 'sweepweave_version' not found in data.");
-            return false;
+            // Be permissive for legacy files: assume v0.0.21 schema.
+            storyworld.sweepweave_version_number = "0.0.21";
+            storyworld.load_from_dict_v0_0_21(data_to_load);
         }
         return true;
     }
