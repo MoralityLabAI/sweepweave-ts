@@ -294,6 +294,25 @@ export class Storyworld {
                                     const effects_manager = new ScriptManager();
                                     effects_manager.load_from_json_v0_0_21(reactionData.after_effects, this);
                                     reaction.after_effects = effects_manager.script_elements;
+                                    if (reaction.effects.length === 0) {
+                                        // Populate placeholder effects for UI visibility when only legacy after_effects exist.
+                                        reaction.effects = reactionData.after_effects
+                                            .map((entry: any) => {
+                                                if (entry?.effect_type === "Bounded Number Effect" && entry.Set?.keyring?.length) {
+                                                    return {
+                                                        type: "SetBNumberProperty",
+                                                        characterId: entry.Set.character ?? "",
+                                                        propertyId: entry.Set.keyring[entry.Set.keyring.length - 1] ?? "",
+                                                        value: { type: "Constant", value: 0 },
+                                                    };
+                                                }
+                                                if (entry?.effect_type === "Spool Effect" && typeof entry.Set === "string") {
+                                                    return { type: "SetSpoolStatus", spoolId: entry.Set, value: { type: "Constant", value: true } };
+                                                }
+                                                return { type: "NextPage", encounterId: "" };
+                                            })
+                                            .filter((effect: any) => effect.type !== "NextPage" || effect.encounterId !== "");
+                                    }
                                 }
                                 if (reactionData.desirability_script) {
                                     reaction.desirability_script = new ScriptManager();
