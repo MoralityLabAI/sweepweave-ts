@@ -251,6 +251,9 @@ export class Storyworld {
                         if (optionData.text_script && typeof optionData.text_script === "object") {
                             option.text = optionData.text_script.value ?? option.text;
                         }
+                        if (optionData.label) {
+                            option.label = optionData.label;
+                        }
                         if (optionData.visibility_ast) {
                             option.visibility_ast = deserializeBool(optionData.visibility_ast);
                         }

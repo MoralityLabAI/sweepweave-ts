@@ -31,6 +31,15 @@ function reactionLabel(reaction: Reaction): string {
   return '[Blank Reaction]';
 }
 
+function optionLabel(option: Option): string {
+  if (option.label && option.label.trim().length > 0) {
+    return option.label;
+  }
+  const firstLine = option.text.split('\n')[0]?.trim();
+  if (firstLine) return firstLine;
+  return '[Blank Option]';
+}
+
 function optionVisible(option: Option, storyworld: Storyworld): boolean {
   if (!option.visibility_ast) return true;
   return evaluateBool(option.visibility_ast, { storyworld });
@@ -206,7 +215,7 @@ export function renderEncountersTab(store: Store): HTMLElement {
   if (selectedEncounter) {
     for (const opt of selectedEncounter.options) {
       const visible = optionVisible(opt, storyworld);
-      const label = `${visible ? '' : '[hidden] '}${opt.text || '(Option)'}`;
+      const label = `${visible ? '' : '[hidden] '}${optionLabel(opt)}`;
       const optNode = el('option', { text: label, attrs: { value: opt.id } }) as HTMLOptionElement;
       if (opt.id === state.selections.optionId) {
         optNode.selected = true;
@@ -216,8 +225,23 @@ export function renderEncountersTab(store: Store): HTMLElement {
   }
   optionList.addEventListener('change', () => store.selectOption(optionList.value || null));
 
+  const optionLabelInput = el('input', {
+    attrs: { type: 'text', value: selectedOption?.label ?? '' },
+    className: 'sw-title-input',
+  }) as HTMLInputElement;
   const optionText = el('textarea', { attrs: { rows: '3' }, className: 'sw-textarea' }) as HTMLTextAreaElement;
   optionText.value = selectedOption?.text ?? '';
+  optionLabelInput.addEventListener('input', () => {
+    const option = getSelectedOption(store.getState());
+    if (!option) return;
+    option.label = optionLabelInput.value;
+    const selectedIndex = optionList.selectedIndex;
+    if (selectedIndex >= 0) {
+      const visible = optionVisible(option, storyworld);
+      optionList.options[selectedIndex].text = `${visible ? '' : '[hidden] '}${optionLabel(option)}`;
+    }
+    touchStoryworld(storyworld);
+  });
   optionText.addEventListener('input', () => {
     const option = getSelectedOption(store.getState());
     if (!option) return;
@@ -225,7 +249,7 @@ export function renderEncountersTab(store: Store): HTMLElement {
     const selectedIndex = optionList.selectedIndex;
     if (selectedIndex >= 0) {
       const visible = optionVisible(option, storyworld);
-      optionList.options[selectedIndex].text = `${visible ? '' : '[hidden] '}${option.text || '(Option)'}`;
+      optionList.options[selectedIndex].text = `${visible ? '' : '[hidden] '}${optionLabel(option)}`;
     }
     touchStoryworld(storyworld);
   });
@@ -281,7 +305,18 @@ export function renderEncountersTab(store: Store): HTMLElement {
     });
   });
 
-  centerCol.append(encounterTitle, encounterScriptRow, encounterText, optionsHeader, optionButtons, optionList, optionText);
+  centerCol.append(
+    encounterTitle,
+    encounterScriptRow,
+    encounterText,
+    optionsHeader,
+    optionButtons,
+    optionList,
+    el('label', { text: 'Option Label' }),
+    optionLabelInput,
+    el('label', { text: 'Option Text' }),
+    optionText
+  );
 
   const reactionsHeader = el('div', { className: 'sw-section-header' }, el('span', { text: 'Reactions:' }));
   const reactionButtons = el('div', { className: 'sw-button-row' });
@@ -304,8 +339,22 @@ export function renderEncountersTab(store: Store): HTMLElement {
   }
   reactionList.addEventListener('change', () => store.selectReaction(reactionList.value || null));
 
+  const reactionLabelInput = el('input', {
+    attrs: { type: 'text', value: selectedReaction?.label ?? '' },
+    className: 'sw-title-input',
+  }) as HTMLInputElement;
   const reactionText = el('textarea', { attrs: { rows: '3' }, className: 'sw-textarea' }) as HTMLTextAreaElement;
   reactionText.value = selectedReaction?.text ?? '';
+  reactionLabelInput.addEventListener('input', () => {
+    const reaction = getSelectedReaction(store.getState());
+    if (!reaction) return;
+    reaction.label = reactionLabelInput.value;
+    const selectedIndex = reactionList.selectedIndex;
+    if (selectedIndex >= 0) {
+      reactionList.options[selectedIndex].text = reactionLabel(reaction);
+    }
+    touchStoryworld(storyworld);
+  });
   reactionText.addEventListener('input', () => {
     const reaction = getSelectedReaction(store.getState());
     if (!reaction) return;
@@ -455,7 +504,19 @@ export function renderEncountersTab(store: Store): HTMLElement {
     store.setState({ storyworld });
   });
 
-  rightCol.append(reactionsHeader, reactionButtons, reactionList, reactionText, weightRow, effectsHeader, effectsButtons, effectsList);
+  rightCol.append(
+    reactionsHeader,
+    reactionButtons,
+    reactionList,
+    el('label', { text: 'Reaction Label' }),
+    reactionLabelInput,
+    el('label', { text: 'Reaction Text' }),
+    reactionText,
+    weightRow,
+    effectsHeader,
+    effectsButtons,
+    effectsList
+  );
 
   container.append(leftCol, centerCol, rightCol);
   return container;
