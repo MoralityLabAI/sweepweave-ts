@@ -2,6 +2,7 @@ import { el } from '../dom';
 import { Store } from '../store';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { openManifoldWindow, sendStoryworldToManifold } from '../manifoldBridge';
 
 type AxisKey = 'index' | 'options' | 'reactions' | 'effects' | { propId: string };
 
@@ -48,6 +49,7 @@ export function renderGraphViewTab(store: Store): HTMLElement {
   const axisReadout = el('div', { className: 'sw-axis-readout' });
   const presetWrap = el('div', { className: 'sw-axis-select' });
   const legend = el('div', { className: 'sw-graph-legend' });
+  const openButton = el('button', { text: 'Open Manifold Window' });
 
   const axisOptions: AxisKey[] = [
     'index',
@@ -137,7 +139,12 @@ export function renderGraphViewTab(store: Store): HTMLElement {
     el('span', { text: 'Ending Encounter' })
   );
 
-  toolbar.append(axisTabs, axisSelectWrap, presetWrap, axisReadout, legend);
+  openButton.addEventListener('click', () => {
+    openManifoldWindow();
+    sendStoryworldToManifold(store.getState().storyworld);
+  });
+
+  toolbar.append(openButton, axisTabs, axisSelectWrap, presetWrap, axisReadout, legend);
 
   const canvasWrap = el('div', { className: 'sw-graph-canvas' });
   container.append(toolbar, canvasWrap);

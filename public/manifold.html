@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SweepWeave Manifold</title>
+    <style>
+      :root {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: #e6e6e6;
+        background-color: #0b0f1c;
+      }
+      body {
+        margin: 0;
+        background: #0b0f1c;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: #141a2b;
+        border-bottom: 1px solid #2e3853;
+      }
+      .toolbar label {
+        font-size: 12px;
+        color: #b6c1e8;
+      }
+      .toolbar select,
+      .toolbar button {
+        background: #1c2236;
+        color: #e6e6e6;
+        border: 1px solid #3d4767;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+      .status {
+        font-size: 12px;
+        color: #b1bad8;
+      }
+      .canvas-wrap {
+        position: relative;
+        flex: 1;
+        min-height: 520px;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .hint {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: rgba(12, 16, 28, 0.7);
+        border: 1px solid rgba(125, 140, 200, 0.3);
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .tooltip {
+        position: absolute;
+        padding: 4px 8px;
+        background: rgba(8, 10, 18, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        font-size: 12px;
+        pointer-events: none;
+        white-space: nowrap;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="toolbar">
+        <label for="xAxis">X</label>
+        <select id="xAxis"></select>
+        <label for="yAxis">Y</label>
+        <select id="yAxis"></select>
+        <label for="zAxis">Z</label>
+        <select id="zAxis"></select>
+        <button id="loadButton">Load JSON</button>
+        <div class="status" id="status">Waiting for storyworld...</div>
+      </div>
+      <div class="canvas-wrap" id="canvasWrap">
+        <div class="hint">Drag to rotate. Scroll to zoom.</div>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+    </div>
+
+    <input id="fileInput" type="file" accept=".json,.js" style="display:none" />
+
+    <script type="module">
+      import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+      import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+      const statusEl = document.getElementById("status");
+      const canvasWrap = document.getElementById("canvasWrap");
+      const tooltip = document.getElementById("tooltip");
+      const fileInput = document.getElementById("fileInput");
+      const loadButton = document.getElementById("loadButton");
+      const xAxisSelect = document.getElementById("xAxis");
+      const yAxisSelect = document.getElementById("yAxis");
+      const zAxisSelect = document.getElementById("zAxis");
+
+      let storyworld = null;
+      let axisOptions = [];
+      let axisState = { x: "index", y: "options", z: "reactions" };
+
+      const axisLabel = (axis) => {
+        if (axis === "index") return "Encounter Index";
+        if (axis === "options") return "Option Count";
+        if (axis === "reactions") return "Reaction Count";
+        if (axis === "effects") return "Effect Count";
+        const prop = storyworld?.authored_properties?.find((p) => p.id === axis.propId);
+        return prop?.property_name || axis.propId || "Property";
+      };
+
+      const axisValue = (axis, encounterIndex) => {
+        const encounters = storyworld?.encounters || [];
+        const encounter = encounters[encounterIndex];
+        if (!encounter) return 0;
+        if (axis === "index") return encounterIndex;
+        if (axis === "options") return encounter.options?.length || 0;
+        if (axis === "reactions") {
+          return (encounter.options || []).reduce((sum, option) => sum + (option.reactions?.length || 0), 0);
+        }
+        if (axis === "effects") {
+          let count = 0;
+          (encounter.options || []).forEach((option) => {
+            (option.reactions || []).forEach((reaction) => {
+              count += reaction.effects?.length || 0;
+            });
+          });
+          return count;
+        }
+        const character = storyworld?.characters?.[0];
+        if (!character) return 0;
+        const map = character.bnumber_properties || character.bnumber_property_values;
+        if (map && typeof map === "object") {
+          if (axis.propId && axis.propId in map) return map[axis.propId];
+        }
+        return 0;
+      };
+
+      const parseAxisValue = (value) => {
+        if (value.startsWith("prop:")) return { propId: value.slice(5) };
+        return value;
+      };
+
+      const rebuildAxisOptions = () => {
+        axisOptions = [
+          "index",
+          "options",
+          "reactions",
+          "effects",
+          ...(storyworld?.authored_properties || []).map((prop) => ({ propId: prop.id })),
+        ];
+        const buildSelect = (selectEl, selected) => {
+          selectEl.innerHTML = "";
+          axisOptions.forEach((axis) => {
+            const value = typeof axis === "string" ? axis : `prop:${axis.propId}`;
+            const opt = document.createElement("option");
+            opt.value = value;
+            opt.textContent = axisLabel(axis);
+            selectEl.appendChild(opt);
+          });
+          selectEl.value = typeof selected === "string" ? selected : `prop:${selected.propId}`;
+        };
+        buildSelect(xAxisSelect, axisState.x);
+        buildSelect(yAxisSelect, axisState.y);
+        buildSelect(zAxisSelect, axisState.z);
+      };
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      canvasWrap.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x05060a, 0.03);
+
+      const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
+      camera.position.set(0, 12, 20);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      scene.add(new THREE.AmbientLight(0x9aa7ff, 0.3));
+      const key = new THREE.DirectionalLight(0xffffff, 0.9);
+      key.position.set(8, 12, 6);
+      scene.add(key);
+
+      const axes = new THREE.AxesHelper(8);
+      axes.material.opacity = 0.6;
+      axes.material.transparent = true;
+      scene.add(axes);
+
+      const pointsGroup = new THREE.Group();
+      const endingsGroup = new THREE.Group();
+      scene.add(pointsGroup);
+      scene.add(endingsGroup);
+
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      const buildPoints = () => {
+        pointsGroup.clear();
+        endingsGroup.clear();
+        if (!storyworld) return;
+        const encounters = storyworld.encounters || [];
+        const values = encounters.map((_, index) => ({
+          x: axisValue(axisState.x, index),
+          y: axisValue(axisState.y, index),
+          z: axisValue(axisState.z, index),
+          encounter: encounters[index],
+        }));
+        const max = values.reduce(
+          (acc, v) => ({
+            x: Math.max(acc.x, Math.abs(v.x)),
+            y: Math.max(acc.y, Math.abs(v.y)),
+            z: Math.max(acc.z, Math.abs(v.z)),
+          }),
+          { x: 1, y: 1, z: 1 }
+        );
+        const scale = 6;
+        values.forEach((v) => {
+          const isEnding = (v.encounter.options || []).length === 0;
+          const geometry = new THREE.SphereGeometry(isEnding ? 0.2 : 0.12, 18, 18);
+          const material = new THREE.MeshStandardMaterial({
+            color: isEnding ? 0xffc86b : 0xe8ecff,
+            emissive: isEnding ? 0xffc86b : 0x6a86ff,
+            emissiveIntensity: isEnding ? 1.2 : 0.5,
+          });
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(
+            (v.x / max.x) * scale,
+            (v.y / max.y) * scale,
+            (v.z / max.z) * scale
+          );
+          mesh.userData = { encounter: v.encounter };
+          if (isEnding) endingsGroup.add(mesh);
+          else pointsGroup.add(mesh);
+        });
+      };
+
+      const resize = () => {
+        const rect = canvasWrap.getBoundingClientRect();
+        renderer.setSize(rect.width, rect.height);
+        camera.aspect = rect.width / rect.height;
+        camera.updateProjectionMatrix();
+      };
+      const ro = new ResizeObserver(resize);
+      ro.observe(canvasWrap);
+      resize();
+
+      let t = 0;
+      const animate = () => {
+        t += 0.01;
+        endingsGroup.children.forEach((child, index) => {
+          child.material.emissiveIntensity = 0.7 + Math.sin(t + index) * 0.3;
+        });
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      };
+      animate();
+
+      renderer.domElement.addEventListener("mousemove", (event) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects([...pointsGroup.children, ...endingsGroup.children], false);
+        if (hits.length) {
+          const encounter = hits[0].object.userData.encounter;
+          const label = encounter?.title || encounter?.id || "Encounter";
+          tooltip.textContent = label;
+          tooltip.style.display = "block";
+          tooltip.style.left = `${event.clientX - rect.left + 12}px`;
+          tooltip.style.top = `${event.clientY - rect.top + 12}px`;
+        } else {
+          tooltip.style.display = "none";
+        }
+      });
+
+      renderer.domElement.addEventListener("mouseleave", () => {
+        tooltip.style.display = "none";
+      });
+
+      renderer.domElement.addEventListener("dblclick", (event) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects([...pointsGroup.children, ...endingsGroup.children], false);
+        if (hits.length) {
+          const encounter = hits[0].object.userData.encounter;
+          if (encounter?.id && window.opener) {
+            window.opener.postMessage({ type: "manifold:selectEncounter", id: encounter.id }, "*");
+          }
+        }
+      });
+
+      xAxisSelect.addEventListener("change", () => {
+        axisState.x = parseAxisValue(xAxisSelect.value);
+        buildPoints();
+      });
+      yAxisSelect.addEventListener("change", () => {
+        axisState.y = parseAxisValue(yAxisSelect.value);
+        buildPoints();
+      });
+      zAxisSelect.addEventListener("change", () => {
+        axisState.z = parseAxisValue(zAxisSelect.value);
+        buildPoints();
+      });
+
+      loadButton.addEventListener("click", () => {
+        fileInput.value = "";
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", async () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        const text = await file.text();
+        const data = parseStoryworld(text);
+        if (data) setStoryworld(data);
+      });
+
+      const parseStoryworld = (text) => {
+        try {
+          if (text.includes("var storyworld_data")) {
+            const match = text.match(/var storyworld_data\\s*=\\s*(\\{[\\s\\S]*\\});?/);
+            if (match) return JSON.parse(match[1]);
+          }
+          return JSON.parse(text);
+        } catch (err) {
+          statusEl.textContent = "Failed to parse storyworld JSON.";
+          return null;
+        }
+      };
+
+      const setStoryworld = (data) => {
+        storyworld = data;
+        statusEl.textContent = `Loaded: ${storyworld.storyworld_title || "Untitled"} (${storyworld.encounters?.length || 0} encounters)`;
+        rebuildAxisOptions();
+        buildPoints();
+      };
+
+      window.addEventListener("message", (event) => {
+        if (!event.data || event.data.type !== "storyworld:update") return;
+        setStoryworld(event.data.data);
+      });
+
+      if (window.opener) {
+        window.opener.postMessage({ type: "manifold:ready" }, "*");
+      }
+    </script>
+  </body>
+</html>

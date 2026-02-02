@@ -10,6 +10,7 @@ import { renderAIConsoleTab } from './tabs/aiConsole';
 import { renderGraphViewTab } from './tabs/graphView';
 import { StoryworldIO } from '../StoryworldIO';
 import { StoryworldSerializer } from '../StoryworldSerializer';
+import { attachManifoldListener, sendStoryworldToManifold } from './manifoldBridge';
 
 const tabs: TabKey[] = [
   'Overview',
@@ -211,10 +212,16 @@ export function createAppShell(store: Store): HTMLElement {
     content.appendChild(renderTabContent(store));
   };
 
+  let manifoldListenerAttached = false;
   store.subscribe(() => {
     renderTabs();
     renderMetrics();
     renderContent();
+    sendStoryworldToManifold(store.getState().storyworld);
+    if (!manifoldListenerAttached) {
+      manifoldListenerAttached = true;
+      attachManifoldListener((id) => store.selectEncounter(id));
+    }
   });
 
   renderTabs();
