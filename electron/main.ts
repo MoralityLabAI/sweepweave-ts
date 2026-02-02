@@ -47,5 +47,9 @@ app.whenReady().then(() => {
     return runId;
   });
 
+  ipcMain.handle('codex:default-cwd', () => {
+    return app.getPath('downloads');
+  });
+
   createWindow();
 });

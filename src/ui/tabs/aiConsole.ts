@@ -17,6 +17,13 @@ export function renderAIConsoleTab(_store: Store): HTMLElement {
 
   codexPathInput.value = localStorage.getItem('ai.codexPath') || '';
   cwdInput.value = localStorage.getItem('ai.cwd') || '';
+  if (!cwdInput.value && window.ai?.getDefaultCwd) {
+    window.ai.getDefaultCwd().then((value) => {
+      if (!cwdInput.value) {
+        cwdInput.value = value;
+      }
+    }).catch(() => {});
+  }
 
   let activeRunId: string | null = null;
 

@@ -24,6 +24,36 @@ const tabs: TabKey[] = [
   'AI Console',
 ];
 
+const formatNumber = (value: number) => value.toFixed(2).replace(/\.00$/, '');
+
+const computeMetrics = (store: Store) => {
+  const storyworld = store.getState().storyworld;
+  const encounters = storyworld.encounters.length;
+  let optionCount = 0;
+  let reactionCount = 0;
+  let effectCount = 0;
+  let endings = 0;
+  for (const encounter of storyworld.encounters) {
+    optionCount += encounter.options.length;
+    if (encounter.options.length === 0) {
+      endings += 1;
+    }
+    for (const option of encounter.options) {
+      reactionCount += option.reactions.length;
+      for (const reaction of option.reactions) {
+        effectCount += reaction.effects?.length ?? 0;
+      }
+    }
+  }
+  return {
+    encounters,
+    avgOptions: encounters ? optionCount / encounters : 0,
+    avgReactions: optionCount ? reactionCount / optionCount : 0,
+    avgEffects: reactionCount ? effectCount / reactionCount : 0,
+    endings,
+  };
+};
+
 function renderTabContent(store: Store): HTMLElement {
   const state = store.getState();
   switch (state.activeTab) {
@@ -131,6 +161,7 @@ export function createAppShell(store: Store): HTMLElement {
   menuRow.append(menuGroup, fileMenu, aiMenu, fileInput);
 
   const tabRow = el('div', { className: 'sw-tab-row' });
+  const metricsRow = el('div', { className: 'sw-metrics-row' });
   const content = el('div', { className: 'sw-content' });
 
   const renderTabs = () => {
@@ -146,6 +177,30 @@ export function createAppShell(store: Store): HTMLElement {
     }
   };
 
+  let lastMetrics = computeMetrics(store);
+  const renderMetrics = () => {
+    const next = computeMetrics(store);
+    metricsRow.innerHTML = '';
+    const makeMetric = (label: keyof typeof next, title: string) => {
+      const item = el('div', { className: 'sw-metric' });
+      const valueEl = el('div', { className: 'sw-metric-value', text: formatNumber(next[label]) });
+      if (next[label] !== (lastMetrics as any)[label]) {
+        valueEl.classList.add('roll');
+        setTimeout(() => valueEl.classList.remove('roll'), 400);
+      }
+      item.append(el('div', { className: 'sw-metric-label', text: title }), valueEl);
+      return item;
+    };
+    metricsRow.append(
+      makeMetric('encounters', 'Encounters'),
+      makeMetric('avgOptions', 'Avg Options'),
+      makeMetric('avgReactions', 'Avg Reactions'),
+      makeMetric('avgEffects', 'Avg Effects'),
+      makeMetric('endings', 'Endings')
+    );
+    lastMetrics = next;
+  };
+
   const renderContent = () => {
     clear(content);
     content.appendChild(renderTabContent(store));
@@ -153,12 +208,14 @@ export function createAppShell(store: Store): HTMLElement {
 
   store.subscribe(() => {
     renderTabs();
+    renderMetrics();
     renderContent();
   });
 
   renderTabs();
+  renderMetrics();
   renderContent();
 
-  root.append(menuRow, tabRow, content);
+  root.append(menuRow, tabRow, metricsRow, content);
   return root;
 }

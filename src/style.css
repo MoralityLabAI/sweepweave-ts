@@ -352,3 +352,43 @@ button:hover {
   overflow: auto;
   border: 1px solid #3a3a3a;
 }
+
+.sw-metrics-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 12px;
+  background: #d0d0d0;
+  border-bottom: 1px solid #a0a0a0;
+}
+
+.sw-metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #e8e8e8;
+  border: 1px solid #9a9a9a;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.sw-metric-label {
+  font-size: 12px;
+  color: #444;
+}
+
+.sw-metric-value {
+  font-weight: 700;
+  min-width: 40px;
+  text-align: right;
+}
+
+.sw-metric-value.roll {
+  animation: sw-roll 0.4s ease-in-out;
+}
+
+@keyframes sw-roll {
+  0% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(-6px); opacity: 0.4; }
+  100% { transform: translateY(0); opacity: 1; }
+}

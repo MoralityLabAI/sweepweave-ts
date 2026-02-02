@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('ai', {
   runCodex: (payload: { prompt: string; cwd?: string; codexPath?: string }) => ipcRenderer.invoke('codex:run', payload),
+  getDefaultCwd: () => ipcRenderer.invoke('codex:default-cwd'),
   onData: (handler: (event: { runId: string; stream: 'stdout' | 'stderr'; data: string }) => void) => {
     ipcRenderer.on('codex:data', (_evt, data) => handler(data));
   },
