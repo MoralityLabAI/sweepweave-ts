@@ -24,16 +24,21 @@ export class StoryworldIO {
         }
 
         storyworld.clear();
+
         if (data_to_load.hasOwnProperty("sweepweave_version")) {
             storyworld.sweepweave_version_number = data_to_load.sweepweave_version;
             const version = storyworld.sweepweave_version_number.split(".");
             
             if (version.length === 3) {
+                const major = parseInt(version[0]);
+                const minor = parseInt(version[1]);
                 const patch = parseInt(version[2]);
-                if (patch >= 21) {
+
+                // Revised logic: Assume versions >= 0.1.0 or >= 0.0.21 should use the newer loader
+                if (major === 0 && minor >= 1 || (major === 0 && minor === 0 && patch >= 21)) {
                     storyworld.load_from_dict_v0_0_21(data_to_load);
-                } else if (patch >= 7 && patch <= 15) {
-                    storyworld.load_from_dict_v0_0_07_through_v0_0_15(data_to_load);
+                } else if (major === 0 && minor === 0 && patch >= 7 && patch <= 15) {
+                    storyworld.load_from_dict_v0_0_07_through_v0_0_15(); // Keep this as is for now
                 } else {
                     console.error(`Cannot load project file: Unsupported version ${storyworld.sweepweave_version_number}.`);
                     return false;

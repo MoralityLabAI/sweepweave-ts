@@ -108,15 +108,18 @@ export class Storyworld {
     }
 
     public load_from_dict_v0_0_21(data: any): void {
-        this.storyworld_title = data.storyworld_title;
-        this.storyworld_author = data.storyworld_author;
+        this.storyworld_title = data.storyworld_title || "";
+        this.storyworld_author = data.storyworld_author || "";
+        this.sweepweave_version_number = data.sweepweave_version || "";
+        this.ifid = data.IFID || "";
+        // Populate other basic fields to satisfy the assertions
         this.storyworld_debug_mode_on = data.debug_mode;
         this.storyworld_display_mode = data.display_mode;
-        this.sweepweave_version_number = data.sweepweave_version;
         this.creation_time = data.creation_time;
         this.modified_time = data.modified_time;
-        this.ifid = data.IFID;
-        this.unique_id_seeds = { ...data.unique_id_seeds };
+        if (data.unique_id_seeds) {
+            this.unique_id_seeds = { ...data.unique_id_seeds };
+        }
         
         // Note: You will eventually need to implement loops here 
         // to populate this.characters, this.encounters, etc.

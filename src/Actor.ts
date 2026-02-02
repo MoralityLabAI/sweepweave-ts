@@ -28,8 +28,13 @@ export class Actor {
     }
 
     public compile(): any {
-        console.warn("STUB: Actor.compile called");
-        return {}; // Placeholder
+        // console.warn("STUB: Actor.compile called"); // Removed console.warn
+        return {
+            id: this.id,
+            // Add other properties that would be serialized if needed
+            name: this.char_name,
+            bnumber_properties: Object.fromEntries(this.bnumber_properties)
+        };
     }
 
     public set_as_copy_of(original: this): void {
