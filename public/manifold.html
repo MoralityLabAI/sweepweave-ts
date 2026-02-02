@@ -112,6 +112,8 @@
       let storyworld = null;
       let axisOptions = [];
       let axisState = { x: null, y: null, z: null };
+      let encounterWeights = [];
+      let axisWeightRanges = new Map();
 
       const axisLabel = (axis) => {
         if (!axis) return "Property";
@@ -136,6 +138,63 @@
       const parseAxisValue = (value) => {
         if (value.startsWith("prop:")) return { propId: value.slice(5) };
         return value;
+      };
+
+      const collectScriptWeights = (node, weights, weight = 1) => {
+        if (!node || typeof node !== "object") return;
+        switch (node.type) {
+          case "BNumberProperty":
+            if (node.propertyId) {
+              weights[node.propertyId] = (weights[node.propertyId] || 0) + weight;
+            }
+            return;
+          case "ArithmeticNegation":
+            return collectScriptWeights(node.child, weights, weight);
+          case "Proximity":
+          case "Average":
+          case "Maximum":
+          case "Minimum":
+            collectScriptWeights(node.left, weights, weight * 0.5);
+            collectScriptWeights(node.right, weights, weight * 0.5);
+            return;
+          case "Blend":
+            collectScriptWeights(node.left, weights, weight * 0.45);
+            collectScriptWeights(node.right, weights, weight * 0.45);
+            collectScriptWeights(node.weight, weights, weight * 0.1);
+            return;
+          case "Nudge":
+            collectScriptWeights(node.base, weights, weight * 0.7);
+            collectScriptWeights(node.nudge, weights, weight * 0.3);
+            return;
+          case "IfThen":
+            collectScriptWeights(node.thenNode, weights, weight * 0.5);
+            collectScriptWeights(node.elseNode, weights, weight * 0.5);
+            return;
+          default:
+            return;
+        }
+      };
+
+      const rebuildEncounterWeights = () => {
+        encounterWeights = [];
+        axisWeightRanges = new Map();
+        const encounters = storyworld?.encounters || [];
+        encounters.forEach((encounter, index) => {
+          const weights = {};
+          if (encounter?.desirability_ast) {
+            collectScriptWeights(encounter.desirability_ast, weights, 1);
+          }
+          if (encounter?.availability_ast) {
+            collectScriptWeights(encounter.availability_ast, weights, 0.5);
+          }
+          encounterWeights[index] = weights;
+          Object.entries(weights).forEach(([propId, value]) => {
+            const current = axisWeightRanges.get(propId) || { min: Infinity, max: -Infinity };
+            current.min = Math.min(current.min, value);
+            current.max = Math.max(current.max, value);
+            axisWeightRanges.set(propId, current);
+          });
+        });
       };
 
       const rebuildAxisOptions = () => {
@@ -205,9 +264,11 @@
       const pointsGroup = new THREE.Group();
       const endingsGroup = new THREE.Group();
       const edgesGroup = new THREE.Group();
+      const effectNodesGroup = new THREE.Group();
       scene.add(pointsGroup);
       scene.add(endingsGroup);
       scene.add(edgesGroup);
+      scene.add(effectNodesGroup);
 
       const raycaster = new THREE.Raycaster();
       const mouse = new THREE.Vector2();
@@ -216,16 +277,18 @@
         pointsGroup.clear();
         endingsGroup.clear();
         edgesGroup.clear();
+        effectNodesGroup.clear();
         if (!storyworld) return;
         if (!axisState.x || !axisState.y || !axisState.z) return;
         const encounters = storyworld.encounters || [];
         const spools = storyworld.spools || [];
         const spoolIndex = new Map(spools.map((spool, index) => [spool.id || spool.spool_id, index]));
-        const values = encounters.map((_, index) => ({
+        const values = encounters.map((encounter, index) => ({
+          index,
           x: axisValue(axisState.x, index),
           y: axisValue(axisState.y, index),
           z: axisValue(axisState.z, index),
-          encounter: encounters[index],
+          encounter,
         }));
         const max = values.reduce(
           (acc, v) => ({
@@ -244,6 +307,17 @@
           const spoolOffset = (spoolOffsetIndex - spools.length / 2) * 0.4;
           const prereqCount = (v.encounter.prerequisites || []).length;
           const prereqOffset = prereqCount * 0.25;
+          const weights = encounterWeights[v.index] || {};
+          const weightForAxis = (axisKey) => {
+            if (!axisKey || typeof axisKey === "string") return 0;
+            const value = weights[axisKey.propId] || 0;
+            const range = axisWeightRanges.get(axisKey.propId);
+            if (!range || !isFinite(range.max - range.min) || range.max === range.min) return 0;
+            return (value - range.min) / (range.max - range.min);
+          };
+          const xBias = weightForAxis(axisState.x) * 0.8;
+          const yBias = weightForAxis(axisState.y) * 0.8;
+          const zBias = weightForAxis(axisState.z) * 0.8;
           const isEnding = (v.encounter.options || []).length === 0;
           const geometry = new THREE.SphereGeometry(isEnding ? 0.2 : 0.12, 18, 18);
           const material = new THREE.MeshStandardMaterial({
@@ -253,9 +327,9 @@
           });
           const mesh = new THREE.Mesh(geometry, material);
           const position = new THREE.Vector3(
-            (v.x / max.x) * scale + spoolOffset,
-            (v.y / max.y) * scale + prereqOffset,
-            (v.z / max.z) * scale
+            (v.x / max.x) * scale + spoolOffset + xBias,
+            (v.y / max.y) * scale + prereqOffset + yBias,
+            (v.z / max.z) * scale + zBias
           );
           mesh.position.copy(position);
           mesh.userData = { encounter: v.encounter };
@@ -275,6 +349,18 @@
           const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 });
           const line = new THREE.Line(geometry, material);
           edgesGroup.add(line);
+
+          const mid = from.position.clone().lerp(to.position, 0.6);
+          const marker = new THREE.Mesh(
+            new THREE.SphereGeometry(0.05, 10, 10),
+            new THREE.MeshStandardMaterial({
+              color: to.isEnding ? 0xffc17a : 0x6a86ff,
+              emissive: to.isEnding ? 0xffb347 : 0x3f59c9,
+              emissiveIntensity: 0.7,
+            })
+          );
+          marker.position.copy(mid);
+          effectNodesGroup.add(marker);
         };
 
         encounters.forEach((encounter) => {
@@ -405,6 +491,7 @@
         const version = versionOverride || data?.sweepweave_version || "unknown";
         statusEl.textContent = `Loaded: ${storyworld.storyworld_title || "Untitled"} (${storyworld.encounters?.length || 0} encounters) [${version}]`;
         rebuildAxisOptions();
+        rebuildEncounterWeights();
         buildPoints();
       };
 
