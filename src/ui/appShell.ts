@@ -42,7 +42,9 @@ const computeMetrics = (store: Store) => {
     for (const option of encounter.options) {
       reactionCount += option.reactions.length;
       for (const reaction of option.reactions) {
-        effectCount += reaction.effects?.length ?? 0;
+        const afterCount = reaction.after_effects?.length ?? 0;
+        const effectCountForReaction = afterCount || (reaction.effects?.length ?? 0);
+        effectCount += effectCountForReaction;
       }
     }
   }

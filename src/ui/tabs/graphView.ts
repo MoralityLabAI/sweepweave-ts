@@ -27,7 +27,8 @@ const axisValue = (axis: AxisKey, encounterIndex: number, store: Store): number 
     let count = 0;
     for (const option of encounter.options) {
       for (const reaction of option.reactions) {
-        count += reaction.effects?.length ?? 0;
+        const afterCount = reaction.after_effects?.length ?? 0;
+        count += afterCount || (reaction.effects?.length ?? 0);
       }
     }
     return count;
