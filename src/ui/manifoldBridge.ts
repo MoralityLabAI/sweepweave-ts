@@ -39,13 +39,20 @@ export const sendStoryworldToManifold = (storyworld: Storyworld) => {
   }, 200);
 };
 
-export const attachManifoldListener = (onSelectEncounter: (id: string) => void) => {
+export const attachManifoldListener = (
+  onSelectEncounter: (id: string) => void,
+  getStoryworld: () => Storyworld
+) => {
   window.addEventListener('message', (event) => {
     if (!event.data) return;
     if (event.data.type === 'manifold:selectEncounter') {
       if (typeof event.data.id === 'string') {
         onSelectEncounter(event.data.id);
       }
+      return;
+    }
+    if (event.data.type === 'manifold:requestStoryworld') {
+      sendStoryworldToManifold(getStoryworld());
       return;
     }
     if (event.data.type === 'manifold:ready' && lastData && lastVersion) {

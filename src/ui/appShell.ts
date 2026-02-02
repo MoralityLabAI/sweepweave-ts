@@ -220,7 +220,7 @@ export function createAppShell(store: Store): HTMLElement {
     sendStoryworldToManifold(store.getState().storyworld);
     if (!manifoldListenerAttached) {
       manifoldListenerAttached = true;
-      attachManifoldListener((id) => store.selectEncounter(id));
+      attachManifoldListener((id) => store.selectEncounter(id), () => store.getState().storyworld);
     }
   });
 

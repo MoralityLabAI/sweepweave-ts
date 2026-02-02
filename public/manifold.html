@@ -139,7 +139,14 @@
       };
 
       const rebuildAxisOptions = () => {
-        axisOptions = (storyworld?.authored_properties || []).map((prop) => ({ propId: prop.id }));
+        const props = [...(storyworld?.authored_properties || [])].sort((a, b) => {
+          const depthDelta = (a.depth ?? 0) - (b.depth ?? 0);
+          if (depthDelta !== 0) return depthDelta;
+          const indexDelta = (a.creation_index ?? 0) - (b.creation_index ?? 0);
+          if (indexDelta !== 0) return indexDelta;
+          return String(a.property_name || "").localeCompare(String(b.property_name || ""));
+        });
+        axisOptions = props.map((prop) => ({ propId: prop.id }));
         const buildSelect = (selectEl, selected) => {
           selectEl.innerHTML = "";
           axisOptions.forEach((axis) => {
@@ -212,6 +219,8 @@
         if (!storyworld) return;
         if (!axisState.x || !axisState.y || !axisState.z) return;
         const encounters = storyworld.encounters || [];
+        const spools = storyworld.spools || [];
+        const spoolIndex = new Map(spools.map((spool, index) => [spool.id || spool.spool_id, index]));
         const values = encounters.map((_, index) => ({
           x: axisValue(axisState.x, index),
           y: axisValue(axisState.y, index),
@@ -229,6 +238,12 @@
         const scale = 6;
         const positions = new Map();
         values.forEach((v) => {
+          const connected = v.encounter.connected_spools || v.encounter.connected_spool_ids || [];
+          const firstSpoolId = connected[0];
+          const spoolOffsetIndex = spoolIndex.get(firstSpoolId) ?? 0;
+          const spoolOffset = (spoolOffsetIndex - spools.length / 2) * 0.4;
+          const prereqCount = (v.encounter.prerequisites || []).length;
+          const prereqOffset = prereqCount * 0.25;
           const isEnding = (v.encounter.options || []).length === 0;
           const geometry = new THREE.SphereGeometry(isEnding ? 0.2 : 0.12, 18, 18);
           const material = new THREE.MeshStandardMaterial({
@@ -238,8 +253,8 @@
           });
           const mesh = new THREE.Mesh(geometry, material);
           const position = new THREE.Vector3(
-            (v.x / max.x) * scale,
-            (v.y / max.y) * scale,
+            (v.x / max.x) * scale + spoolOffset,
+            (v.y / max.y) * scale + prereqOffset,
             (v.z / max.z) * scale
           );
           mesh.position.copy(position);
@@ -355,6 +370,11 @@
       });
 
       loadButton.addEventListener("click", () => {
+        if (window.opener) {
+          window.opener.postMessage({ type: "manifold:requestStoryworld" }, "*");
+          statusEl.textContent = "Requesting storyworld from editor...";
+          return;
+        }
         fileInput.value = "";
         fileInput.click();
       });
