@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { openManifoldWindow, sendStoryworldToManifold } from '../manifoldBridge';
 
+let autoOpenedManifold = false;
+
 type AxisKey = 'index' | 'options' | 'reactions' | 'effects' | { propId: string };
 
 const axisLabel = (axis: AxisKey, store: Store): string => {
@@ -41,6 +43,11 @@ const axisValue = (axis: AxisKey, encounterIndex: number, store: Store): number 
 };
 
 export function renderGraphViewTab(store: Store): HTMLElement {
+  if (!autoOpenedManifold) {
+    autoOpenedManifold = true;
+    openManifoldWindow();
+    sendStoryworldToManifold(store.getState().storyworld);
+  }
   const storyworld = store.getState().storyworld;
   const container = el('div', { className: 'sw-graph-view' });
   const toolbar = el('div', { className: 'sw-graph-toolbar' });

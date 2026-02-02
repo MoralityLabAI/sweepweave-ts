@@ -4,13 +4,14 @@ import { StoryworldSerializer } from '../StoryworldSerializer';
 let manifoldWindow: Window | null = null;
 let lastPayload: string | null = null;
 let lastData: unknown | null = null;
+let lastVersion: string | null = null;
 let sendTimer: number | null = null;
 
 const manifoldUrl = '/manifold.html';
 
-const postToManifold = (data: unknown) => {
+const postToManifold = (data: unknown, version: string) => {
   if (!manifoldWindow || manifoldWindow.closed) return;
-  manifoldWindow.postMessage({ type: 'storyworld:update', data }, '*');
+  manifoldWindow.postMessage({ type: 'storyworld:update', version, data }, '*');
 };
 
 export const openManifoldWindow = (): Window | null => {
@@ -25,14 +26,16 @@ export const openManifoldWindow = (): Window | null => {
 
 export const sendStoryworldToManifold = (storyworld: Storyworld) => {
   if (!manifoldWindow || manifoldWindow.closed) return;
+  const version = storyworld.sweepweave_version ?? 'unknown';
   const data = StoryworldSerializer.to_project_dict(storyworld);
   lastData = data;
-  const payload = JSON.stringify(data);
+  lastVersion = version;
+  const payload = JSON.stringify({ version, data });
   if (payload === lastPayload) return;
   lastPayload = payload;
   if (sendTimer) window.clearTimeout(sendTimer);
   sendTimer = window.setTimeout(() => {
-    postToManifold(data);
+    postToManifold(data, version);
   }, 200);
 };
 
@@ -45,8 +48,8 @@ export const attachManifoldListener = (onSelectEncounter: (id: string) => void) 
       }
       return;
     }
-    if (event.data.type === 'manifold:ready' && lastData) {
-      postToManifold(lastData);
+    if (event.data.type === 'manifold:ready' && lastData && lastVersion) {
+      postToManifold(lastData, lastVersion);
     }
   });
 };

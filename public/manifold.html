@@ -111,13 +111,10 @@
 
       let storyworld = null;
       let axisOptions = [];
-      let axisState = { x: "index", y: "options", z: "reactions" };
+      let axisState = { x: null, y: null, z: null };
 
       const axisLabel = (axis) => {
-        if (axis === "index") return "Encounter Index";
-        if (axis === "options") return "Option Count";
-        if (axis === "reactions") return "Reaction Count";
-        if (axis === "effects") return "Effect Count";
+        if (!axis) return "Property";
         const prop = storyworld?.authored_properties?.find((p) => p.id === axis.propId);
         return prop?.property_name || axis.propId || "Property";
       };
@@ -126,20 +123,7 @@
         const encounters = storyworld?.encounters || [];
         const encounter = encounters[encounterIndex];
         if (!encounter) return 0;
-        if (axis === "index") return encounterIndex;
-        if (axis === "options") return encounter.options?.length || 0;
-        if (axis === "reactions") {
-          return (encounter.options || []).reduce((sum, option) => sum + (option.reactions?.length || 0), 0);
-        }
-        if (axis === "effects") {
-          let count = 0;
-          (encounter.options || []).forEach((option) => {
-            (option.reactions || []).forEach((reaction) => {
-              count += reaction.effects?.length || 0;
-            });
-          });
-          return count;
-        }
+        if (!axis) return 0;
         const character = storyworld?.characters?.[0];
         if (!character) return 0;
         const map = character.bnumber_properties || character.bnumber_property_values;
@@ -155,13 +139,7 @@
       };
 
       const rebuildAxisOptions = () => {
-        axisOptions = [
-          "index",
-          "options",
-          "reactions",
-          "effects",
-          ...(storyworld?.authored_properties || []).map((prop) => ({ propId: prop.id })),
-        ];
+        axisOptions = (storyworld?.authored_properties || []).map((prop) => ({ propId: prop.id }));
         const buildSelect = (selectEl, selected) => {
           selectEl.innerHTML = "";
           axisOptions.forEach((axis) => {
@@ -171,11 +149,27 @@
             opt.textContent = axisLabel(axis);
             selectEl.appendChild(opt);
           });
-          selectEl.value = typeof selected === "string" ? selected : `prop:${selected.propId}`;
+          if (selected) {
+            selectEl.value = typeof selected === "string" ? selected : `prop:${selected.propId}`;
+          }
         };
-        buildSelect(xAxisSelect, axisState.x);
-        buildSelect(yAxisSelect, axisState.y);
-        buildSelect(zAxisSelect, axisState.z);
+        if (axisOptions.length > 0) {
+          axisState.x = axisOptions[0];
+          axisState.y = axisOptions[1] || axisOptions[0];
+          axisState.z = axisOptions[2] || axisOptions[0];
+          buildSelect(xAxisSelect, axisState.x);
+          buildSelect(yAxisSelect, axisState.y);
+          buildSelect(zAxisSelect, axisState.z);
+          xAxisSelect.disabled = false;
+          yAxisSelect.disabled = false;
+          zAxisSelect.disabled = false;
+        } else {
+          axisState = { x: null, y: null, z: null };
+          xAxisSelect.disabled = true;
+          yAxisSelect.disabled = true;
+          zAxisSelect.disabled = true;
+          statusEl.textContent = "No authored properties to display.";
+        }
       };
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -203,8 +197,10 @@
 
       const pointsGroup = new THREE.Group();
       const endingsGroup = new THREE.Group();
+      const edgesGroup = new THREE.Group();
       scene.add(pointsGroup);
       scene.add(endingsGroup);
+      scene.add(edgesGroup);
 
       const raycaster = new THREE.Raycaster();
       const mouse = new THREE.Vector2();
@@ -212,7 +208,9 @@
       const buildPoints = () => {
         pointsGroup.clear();
         endingsGroup.clear();
+        edgesGroup.clear();
         if (!storyworld) return;
+        if (!axisState.x || !axisState.y || !axisState.z) return;
         const encounters = storyworld.encounters || [];
         const values = encounters.map((_, index) => ({
           x: axisValue(axisState.x, index),
@@ -229,6 +227,7 @@
           { x: 1, y: 1, z: 1 }
         );
         const scale = 6;
+        const positions = new Map();
         values.forEach((v) => {
           const isEnding = (v.encounter.options || []).length === 0;
           const geometry = new THREE.SphereGeometry(isEnding ? 0.2 : 0.12, 18, 18);
@@ -238,14 +237,49 @@
             emissiveIntensity: isEnding ? 1.2 : 0.5,
           });
           const mesh = new THREE.Mesh(geometry, material);
-          mesh.position.set(
+          const position = new THREE.Vector3(
             (v.x / max.x) * scale,
             (v.y / max.y) * scale,
             (v.z / max.z) * scale
           );
+          mesh.position.copy(position);
           mesh.userData = { encounter: v.encounter };
           if (isEnding) endingsGroup.add(mesh);
           else pointsGroup.add(mesh);
+          if (v.encounter?.id) {
+            positions.set(v.encounter.id, { position, isEnding });
+          }
+        });
+
+        const addEdge = (fromId, toId) => {
+          const from = positions.get(fromId);
+          const to = positions.get(toId);
+          if (!from || !to) return;
+          const geometry = new THREE.BufferGeometry().setFromPoints([from.position, to.position]);
+          const color = to.isEnding ? 0xffc17a : 0x6a86ff;
+          const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 });
+          const line = new THREE.Line(geometry, material);
+          edgesGroup.add(line);
+        };
+
+        encounters.forEach((encounter) => {
+          const fromId = encounter.id;
+          (encounter.options || []).forEach((option) => {
+            (option.reactions || []).forEach((reaction) => {
+              (reaction.effects || []).forEach((effect) => {
+                if (!effect) return;
+                if (effect.type === "NextPage" && effect.encounterId) {
+                  addEdge(fromId, effect.encounterId);
+                }
+                if ((effect.type === "DisplayEncounter" || effect.type === "DisplaySpecificEncounter") && effect.encounterId) {
+                  addEdge(fromId, effect.encounterId);
+                }
+                if (effect.type === "NextPage" && effect.encounter_id) {
+                  addEdge(fromId, effect.encounter_id);
+                }
+              });
+            });
+          });
         });
       };
 
@@ -346,16 +380,17 @@
         }
       };
 
-      const setStoryworld = (data) => {
+      const setStoryworld = (data, versionOverride) => {
         storyworld = data;
-        statusEl.textContent = `Loaded: ${storyworld.storyworld_title || "Untitled"} (${storyworld.encounters?.length || 0} encounters)`;
+        const version = versionOverride || data?.sweepweave_version || "unknown";
+        statusEl.textContent = `Loaded: ${storyworld.storyworld_title || "Untitled"} (${storyworld.encounters?.length || 0} encounters) [${version}]`;
         rebuildAxisOptions();
         buildPoints();
       };
 
       window.addEventListener("message", (event) => {
         if (!event.data || event.data.type !== "storyworld:update") return;
-        setStoryworld(event.data.data);
+        setStoryworld(event.data.data, event.data.version);
       });
 
       if (window.opener) {
