@@ -8,6 +8,7 @@ import { renderPersonalityTab } from './tabs/personality';
 import { renderPlayTab } from './tabs/play';
 import { renderAIConsoleTab } from './tabs/aiConsole';
 import { renderGraphViewTab } from './tabs/graphView';
+import { renderRehearsalTab } from './tabs/rehearsal';
 import { StoryworldIO } from '../StoryworldIO';
 import { StoryworldSerializer } from '../StoryworldSerializer';
 import { attachManifoldListener, sendStoryworldToManifold } from './manifoldBridge';
@@ -77,6 +78,8 @@ function renderTabContent(store: Store): HTMLElement {
       return renderAIConsoleTab(store);
     case 'Graph View':
       return renderGraphViewTab(store);
+    case 'Rehearsal':
+      return renderRehearsalTab(store);
     default:
       return el('div', { className: 'sw-placeholder', text: `${state.activeTab} coming soon.` });
   }
