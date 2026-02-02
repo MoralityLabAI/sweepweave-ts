@@ -10,7 +10,8 @@ export function renderSpoolsTab(store: Store): HTMLElement {
 
   const container = el('div', { className: 'sw-spools' });
   const leftCol = el('div', { className: 'sw-panel sw-col' });
-  const rightCol = el('div', { className: 'sw-panel sw-col sw-col-wide' });
+  const centerCol = el('div', { className: 'sw-panel sw-col sw-col-wide' });
+  const rightCol = el('div', { className: 'sw-panel sw-col' });
 
   const spoolHeader = el('div', { className: 'sw-section-header' }, el('span', { text: 'Spools:' }));
   const spoolButtons = el('div', { className: 'sw-button-row' });
@@ -50,7 +51,13 @@ export function renderSpoolsTab(store: Store): HTMLElement {
     attrs: { type: 'text', value: selectedSpool?.spool_name ?? selectedSpool?.name ?? '' },
     className: 'sw-title-input',
   }) as HTMLInputElement;
-  topRow.append(el('label', { text: 'Spool Name' }), nameInput);
+  const activeToggle = el('label', { className: 'sw-toggle' },
+    el('input', { attrs: { type: 'checkbox' } }) as HTMLInputElement,
+    el('span', { text: 'Active at start of play' })
+  );
+  const activeCheckbox = activeToggle.querySelector('input') as HTMLInputElement;
+  activeCheckbox.checked = Boolean(selectedSpool?.active_at_start);
+  topRow.append(el('label', { text: 'Spool Name' }), nameInput, activeToggle);
 
   nameInput.addEventListener('input', () => {
     const spool = getSelectedSpool(store.getState());
@@ -59,7 +66,14 @@ export function renderSpoolsTab(store: Store): HTMLElement {
     spool.name = nameInput.value;
     touchStoryworld(storyworld);
   });
+  activeCheckbox.addEventListener('change', () => {
+    const spool = getSelectedSpool(store.getState());
+    if (!spool) return;
+    spool.active_at_start = activeCheckbox.checked;
+    touchStoryworld(storyworld);
+  });
   const spoolEncountersSection = el('div', { className: 'sw-spool-body' });
+  const spoolEncountersHeader = el('div', { className: 'sw-section-header', text: 'Encounters in this spool' });
   const spoolEncountersList = el('select', { attrs: { size: '10' }, className: 'sw-listbox' }) as HTMLSelectElement;
   const addEncounterBtn = el('button', { text: 'Add encounter' });
   const removeEncounterBtn = el('button', { text: 'Remove encounter' });
@@ -75,12 +89,44 @@ export function renderSpoolsTab(store: Store): HTMLElement {
     }
   }
 
-  const allEncountersList = el('select', { attrs: { size: '10' }, className: 'sw-listbox' }) as HTMLSelectElement;
-  const encounters = [...storyworld.encounters].sort((a, b) => a.title.localeCompare(b.title));
-  for (const encounter of encounters) {
-    const option = el('option', { text: encounter.title || encounter.id, attrs: { value: encounter.id } }) as HTMLOptionElement;
-    allEncountersList.appendChild(option);
-  }
+  const searchRow = el('div', { className: 'sw-row' });
+  const searchLabel = el('label', { text: 'Search Encounter:' });
+  const searchInput = el('input', { attrs: { type: 'text', placeholder: 'Search' } }) as HTMLInputElement;
+  searchRow.append(searchLabel, searchInput);
+
+  const sortRow = el('div', { className: 'sw-row' });
+  const sortSelect = el('select');
+  sortSelect.append(el('option', { text: 'Alphabetical', attrs: { value: 'alphabetical' } }));
+  const sortDirBtn = el('button', { text: 'A/Z' });
+  const sortMoreBtn = el('button', { text: '...' });
+  sortRow.append(el('label', { text: 'Sort by:' }), sortSelect, sortDirBtn, sortMoreBtn);
+
+  let sortAsc = true;
+  sortDirBtn.addEventListener('click', () => {
+    sortAsc = !sortAsc;
+    sortDirBtn.textContent = sortAsc ? 'A/Z' : 'Z/A';
+    renderAllEncounters();
+  });
+  sortSelect.addEventListener('change', () => renderAllEncounters());
+  searchInput.addEventListener('input', () => renderAllEncounters());
+
+  const allEncountersList = el('select', { attrs: { size: '12' }, className: 'sw-listbox' }) as HTMLSelectElement;
+  const renderAllEncounters = () => {
+    allEncountersList.innerHTML = '';
+    const term = searchInput.value.trim().toLowerCase();
+    let encounters = [...storyworld.encounters];
+    if (sortSelect.value === 'alphabetical') {
+      encounters.sort((a, b) => a.title.localeCompare(b.title));
+    }
+    if (!sortAsc) encounters.reverse();
+    for (const encounter of encounters) {
+      const text = encounter.title || encounter.id;
+      if (term && !text.toLowerCase().includes(term)) continue;
+      const option = el('option', { text, attrs: { value: encounter.id } }) as HTMLOptionElement;
+      allEncountersList.appendChild(option);
+    }
+  };
+  renderAllEncounters();
 
   addEncounterBtn.addEventListener('click', () => {
     const spool = getSelectedSpool(store.getState());
@@ -105,11 +151,17 @@ export function renderSpoolsTab(store: Store): HTMLElement {
 
   spoolEncountersSection.append(
     el('div', { className: 'sw-row' }, addEncounterBtn, removeEncounterBtn),
-    el('div', { className: 'sw-dual-lists' }, spoolEncountersList, allEncountersList)
+    spoolEncountersList
   );
 
-  rightCol.append(topRow, spoolEncountersSection);
+  centerCol.append(topRow, spoolEncountersHeader, spoolEncountersSection);
+  rightCol.append(
+    el('div', { className: 'sw-section-header', text: 'All encounters' }),
+    searchRow,
+    sortRow,
+    allEncountersList
+  );
 
-  container.append(leftCol, rightCol);
+  container.append(leftCol, centerCol, rightCol);
   return container;
 }

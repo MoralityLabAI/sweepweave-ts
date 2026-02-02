@@ -122,6 +122,10 @@ button:hover {
   grid-template-columns: 1fr 2fr;
 }
 
+.sw-spools {
+  grid-template-columns: 1fr 2fr 1.4fr;
+}
+
 .sw-col {
   display: flex;
   flex-direction: column;
