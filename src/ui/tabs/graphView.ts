@@ -141,9 +141,119 @@ export function renderGraphViewTab(store: Store): HTMLElement {
   const canvasWrap = el('div', { className: 'sw-graph-canvas' });
   container.append(toolbar, canvasWrap);
 
+  const parseAxis = (value: string): AxisKey => {
+    if (value.startsWith('prop:')) {
+      return { propId: value.slice(5) };
+    }
+    return value as AxisKey;
+  };
+
+  const renderFallback2d = () => {
+    const message = el('div', {
+      className: 'sw-graph-fallback',
+      text: 'WebGL unavailable. Showing 2D preview instead.',
+    });
+    const fallbackCanvas = document.createElement('canvas');
+    fallbackCanvas.width = canvasWrap.clientWidth || 800;
+    fallbackCanvas.height = canvasWrap.clientHeight || 600;
+    fallbackCanvas.className = 'sw-graph-fallback-canvas';
+    canvasWrap.append(message, fallbackCanvas);
+
+    const ctx = fallbackCanvas.getContext('2d');
+    const draw2d = () => {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, fallbackCanvas.width, fallbackCanvas.height);
+      ctx.fillStyle = '#0a0e1b';
+      ctx.fillRect(0, 0, fallbackCanvas.width, fallbackCanvas.height);
+
+      const encounters = storyworld.encounters;
+      const values = encounters.map((_, index) => ({
+        x: axisValue(axisState.x, index, store),
+        y: axisValue(axisState.y, index, store),
+        z: axisValue(axisState.z, index, store),
+        encounter: encounters[index],
+      }));
+      const max = values.reduce(
+        (acc, v) => ({
+          x: Math.max(acc.x, Math.abs(v.x)),
+          y: Math.max(acc.y, Math.abs(v.y)),
+          z: Math.max(acc.z, Math.abs(v.z)),
+        }),
+        { x: 1, y: 1, z: 1 }
+      );
+      const padding = 30;
+      const width = fallbackCanvas.width - padding * 2;
+      const height = fallbackCanvas.height - padding * 2;
+
+      ctx.strokeStyle = '#303a55';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.rect(padding, padding, width, height);
+      ctx.stroke();
+
+      values.forEach((v) => {
+        const isEnding = v.encounter.options.length === 0;
+        const px = padding + ((v.x / max.x) * 0.5 + 0.5) * width;
+        const py = padding + (1 - ((v.y / max.y) * 0.5 + 0.5)) * height;
+        ctx.beginPath();
+        ctx.fillStyle = isEnding ? '#ffc86b' : '#e8ecff';
+        ctx.strokeStyle = isEnding ? '#ffb347' : '#6a86ff';
+        ctx.lineWidth = 1;
+        ctx.arc(px, py, isEnding ? 5 : 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    };
+
+    updateReadout();
+    updateSelectValue();
+    draw2d();
+    axisSelect.select.addEventListener('change', () => {
+      axisState = { ...axisState, [activeAxis]: parseAxis(axisSelect.select.value) };
+      updateReadout();
+      draw2d();
+    });
+    presetSelect.addEventListener('change', () => {
+      const preset = presets[Number(presetSelect.value)];
+      if (!preset) return;
+      axisState = { ...preset.axes };
+      updateReadout();
+      updateSelectValue();
+      draw2d();
+    });
+    window.addEventListener('resize', () => {
+      fallbackCanvas.width = canvasWrap.clientWidth || 800;
+      fallbackCanvas.height = canvasWrap.clientHeight || 600;
+      draw2d();
+    });
+
+    return container;
+  };
+
+  const isWebGLAvailable = () => {
+    try {
+      const testCanvas = document.createElement('canvas');
+      return !!(testCanvas.getContext('webgl2') || testCanvas.getContext('webgl'));
+    } catch {
+      return false;
+    }
+  };
+
+  if (!isWebGLAvailable()) {
+    return renderFallback2d();
+  }
+
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x05060a, 0.03);
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  let renderer: THREE.WebGLRenderer | null = null;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+  } catch {
+    return renderFallback2d();
+  }
+  if (!renderer) {
+    return renderFallback2d();
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(canvasWrap.clientWidth || 800, canvasWrap.clientHeight || 600);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -227,13 +337,6 @@ export function renderGraphViewTab(store: Store): HTMLElement {
 
   const updateAxes = () => {
     buildPoints();
-  };
-
-  const parseAxis = (value: string): AxisKey => {
-    if (value.startsWith('prop:')) {
-      return { propId: value.slice(5) };
-    }
-    return value as AxisKey;
   };
 
   axisSelect.select.addEventListener('change', () => {
