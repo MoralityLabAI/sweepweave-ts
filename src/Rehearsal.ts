@@ -318,7 +318,15 @@ export class Rehearsal {
                 }
             }
             if (left_to_explore.length > 0) {
-                left_to_explore.sort(() => Math.random() - 0.5);
+                left_to_explore.sort((a, b) => {
+                    const aRecord = a.get_metadata(0);
+                    const bRecord = b.get_metadata(0);
+                    const aEncounter = aRecord?.encounter;
+                    const bEncounter = bRecord?.encounter;
+                    const aKey = aEncounter?.title || aEncounter?.id || "";
+                    const bKey = bEncounter?.title || bEncounter?.id || "";
+                    return aKey.localeCompare(bKey);
+                });
                 this.current_page = left_to_explore[0];
             } else {
                 this.current_page!.get_metadata(0).fully_explored = true;

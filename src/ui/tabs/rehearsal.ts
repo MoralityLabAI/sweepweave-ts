@@ -129,15 +129,25 @@ const computeCastIndex = (rehearsal: Rehearsal) => {
 };
 
 const computeOutcomeIndex = (rehearsal: Rehearsal) => {
-  const outcomes: { encounter: Encounter | null; path: string; length: number }[] = [];
+  const outcomes: {
+    encounter: Encounter | null;
+    path: string;
+    length: number;
+    optionCount: number;
+    reactionCount: number;
+  }[] = [];
   const paths = collectPaths(rehearsal.history.root);
   for (const { path } of paths) {
     const last = path[path.length - 1];
     if (!last || !last.is_an_ending_leaf) continue;
+    const optionCount = path.filter((record) => Boolean(record.player_choice)).length;
+    const reactionCount = path.filter((record) => Boolean(record.antagonist_choice)).length;
     outcomes.push({
       encounter: last.encounter,
       path: summarizePath(path),
       length: path.length,
+      optionCount,
+      reactionCount,
     });
   }
   return outcomes;
@@ -213,6 +223,8 @@ export function renderRehearsalTab(store: Store): HTMLElement {
       el('tr', {},
         el('th', { text: 'Outcome' }),
         el('th', { text: 'Path Length' }),
+        el('th', { text: 'Options' }),
+        el('th', { text: 'Reactions' }),
         el('th', { text: 'Sample Path' })
       )
     ),
@@ -284,6 +296,8 @@ export function renderRehearsalTab(store: Store): HTMLElement {
         el('tr', {},
           el('td', { text: formatEncounter(row.encounter) }),
           el('td', { text: String(row.length) }),
+          el('td', { text: String(row.optionCount) }),
+          el('td', { text: String(row.reactionCount) }),
           el('td', { text: row.path })
         )
       );
@@ -357,9 +371,23 @@ export function renderRehearsalTab(store: Store): HTMLElement {
     }
   });
 
+  const serializeTree = (node: any): any => {
+    const record: HB_Record = node.get_metadata(0);
+    return {
+      encounter: record.encounter ? { id: record.encounter.id, title: record.encounter.title } : null,
+      option: record.player_choice ? { id: record.player_choice.id, text: record.player_choice.text } : null,
+      reaction: record.antagonist_choice ? { id: record.antagonist_choice.id, text: record.antagonist_choice.text } : null,
+      turn: record.turn,
+      ending: record.is_an_ending_leaf,
+      children: node.get_children().map((child: any) => serializeTree(child)),
+    };
+  };
+
   saveBtn.addEventListener('click', () => {
     if (!uiState.rehearsal) return;
     const report = computeEventIndex(uiState.rehearsal);
+    const cast = computeCastIndex(uiState.rehearsal);
+    const outcomes = computeOutcomeIndex(uiState.rehearsal);
     const data = {
       events: storyworld.encounters.map((encounter) => ({
         id: encounter.id,
@@ -368,6 +396,9 @@ export function renderRehearsalTab(store: Store): HTMLElement {
         yielding_paths: report.pathCounts.get(encounter.id) ?? 0,
         sample_paths: report.pathSamples.get(encounter.id) ?? [],
       })),
+      cast,
+      outcomes,
+      tree: uiState.rehearsal.history.root ? serializeTree(uiState.rehearsal.history.root) : null,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
