@@ -3,6 +3,15 @@ import { BNumberBlueprint } from './BNumberBlueprint';
 import { Encounter } from './Encounter';
 import { Spool } from './Spool';
 
+export interface UniqueIdSeeds {
+    character: number;
+    encounter: number;
+    option: number;
+    reaction: number;
+    spool: number;
+    authored_property: number;
+}
+
 export class Storyworld {
     public character_directory: Map<string, Actor> = new Map();
     public spool_directory: Map<string, Spool> = new Map();
@@ -11,7 +20,14 @@ export class Storyworld {
     public authored_properties: BNumberBlueprint[] = [];
     public encounters: Encounter[] = [];
     public spools: Spool[] = [];
-    public unique_id_seeds: number[] = [];
+    public unique_id_seeds: UniqueIdSeeds = {
+        character: 0,
+        encounter: 0,
+        option: 0,
+        reaction: 0,
+        spool: 0,
+        authored_property: 0
+    };
     public storyworld_title: string = "";
     public storyworld_author: string = "";
     public storyworld_debug_mode_on: boolean = false;
@@ -29,7 +45,14 @@ export class Storyworld {
         this.authored_properties = [];
         this.encounters = [];
         this.spools = [];
-        this.unique_id_seeds = [];
+        this.unique_id_seeds = {
+            character: 0,
+            encounter: 0,
+            option: 0,
+            reaction: 0,
+            spool: 0,
+            authored_property: 0
+        };
         this.storyworld_title = "";
         this.storyworld_author = "";
         this.storyworld_debug_mode_on = false;
@@ -50,7 +73,7 @@ export class Storyworld {
         this.creation_time = original.creation_time;
         this.modified_time = original.modified_time;
         this.ifid = original.ifid;
-        this.unique_id_seeds = [...original.unique_id_seeds];
+        this.unique_id_seeds = { ...original.unique_id_seeds };
 
         for (const character of original.characters) {
             const new_character = new Actor();
@@ -84,7 +107,18 @@ export class Storyworld {
         // Implement this method
     }
 
-    public load_from_dict_v0_0_21(): void {
-        // Implement this method
+    public load_from_dict_v0_0_21(data: any): void {
+        this.storyworld_title = data.storyworld_title;
+        this.storyworld_author = data.storyworld_author;
+        this.storyworld_debug_mode_on = data.debug_mode;
+        this.storyworld_display_mode = data.display_mode;
+        this.sweepweave_version_number = data.sweepweave_version;
+        this.creation_time = data.creation_time;
+        this.modified_time = data.modified_time;
+        this.ifid = data.IFID;
+        this.unique_id_seeds = { ...data.unique_id_seeds };
+        
+        // Note: You will eventually need to implement loops here 
+        // to populate this.characters, this.encounters, etc.
     }
 }

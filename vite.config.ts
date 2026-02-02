@@ -4,8 +4,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    transformMode: {
-      web: [/.(ts|tsx)$/, /html-encoding-sniffer/, /@exodus\/bytes/],
-    },
+    setupFiles: ['./vitest.setup.ts'],
+  },
+  optimizeDeps: {
+    exclude: ['html-encoding-sniffer', '@exodus/bytes'],
+  },
+  ssr: {
+    noExternal: ['html-encoding-sniffer', '@exodus/bytes'],
   },
 });
