@@ -52,7 +52,9 @@ export class Reaction {
             weight: this.weight,
             desirability_script: this.desirability_script.compile(),
             desirability_ast: (this.desirability_script as any).ast_json ?? null,
-            inclination_ast: this.inclination_script ? serializeScript(this.inclination_script) : null,
+            inclination_ast: this.inclination_script
+                ? serializeScript(this.inclination_script)
+                : (this.desirability_script as any).ast_json ?? null,
             effects: this.effects.map((effect) => serializeEffect(effect)),
             after_effects: this.after_effects.map((effect) => effect.compile()),
         };

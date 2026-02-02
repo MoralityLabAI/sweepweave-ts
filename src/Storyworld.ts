@@ -301,6 +301,11 @@ export class Storyworld {
                                 }
                                 if (reactionData.desirability_ast) {
                                     (reaction.desirability_script as any).ast_json = reactionData.desirability_ast;
+                                    reaction.inclination_script = deserializeScript(reactionData.desirability_ast);
+                                }
+                                if (reactionData.inclination_ast) {
+                                    (reaction.desirability_script as any).ast_json = reactionData.inclination_ast;
+                                    reaction.inclination_script = deserializeScript(reactionData.inclination_ast);
                                 }
                                 if (Array.isArray(reactionData.prerequisites)) {
                                     reaction.prerequisites = this.load_prerequisites(reactionData.prerequisites);

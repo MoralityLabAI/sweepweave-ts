@@ -74,7 +74,7 @@ export function renderEncountersTab(store: Store): HTMLElement {
     el('option', { text: 'Created', attrs: { value: 'created' } })
   );
   const sortDirectionBtn = el('button', { text: 'A/Z' });
-  const sortMoreBtn = el('button', { text: '⋮' });
+  const sortMoreBtn = el('button', { text: '...' });
   sortRow.append(sortLabel, sortSelect, sortDirectionBtn, sortMoreBtn);
 
   let sortAsc = true;
@@ -160,8 +160,8 @@ export function renderEncountersTab(store: Store): HTMLElement {
   });
 
   const encounterScriptRow = el('div', { className: 'sw-row' });
-  const availabilityBtn = el('button', { text: 'Availability Script…' });
-  const desirabilityBtn = el('button', { text: 'Desirability Script…' });
+  const availabilityBtn = el('button', { text: 'Availability Script...' });
+  const desirabilityBtn = el('button', { text: 'Desirability Script...' });
   encounterScriptRow.append(availabilityBtn, desirabilityBtn);
 
   availabilityBtn.addEventListener('click', () => {
@@ -205,10 +205,10 @@ export function renderEncountersTab(store: Store): HTMLElement {
   const optionButtons = el('div', { className: 'sw-button-row' });
   const addOptionBtn = el('button', { text: '+' });
   const removeOptionBtn = el('button', { text: '-' });
-  const optionUpBtn = el('button', { text: '↑' });
-  const optionDownBtn = el('button', { text: '↓' });
-  const optionHandBtn = el('button', { text: '☞' });
-  const optionVisibilityBtn = el('button', { text: 'Visibility Script…' });
+  const optionUpBtn = el('button', { text: '^' });
+  const optionDownBtn = el('button', { text: 'v' });
+  const optionHandBtn = el('button', { text: '>' });
+  const optionVisibilityBtn = el('button', { text: 'Visibility Script...' });
   optionButtons.append(addOptionBtn, removeOptionBtn, optionUpBtn, optionDownBtn, optionHandBtn, optionVisibilityBtn);
 
   const optionList = el('select', { attrs: { size: '6' }, className: 'sw-listbox' }) as HTMLSelectElement;
@@ -322,9 +322,9 @@ export function renderEncountersTab(store: Store): HTMLElement {
   const reactionButtons = el('div', { className: 'sw-button-row' });
   const addReactionBtn = el('button', { text: '+' });
   const removeReactionBtn = el('button', { text: '-' });
-  const reactionUpBtn = el('button', { text: '↑' });
-  const reactionDownBtn = el('button', { text: '↓' });
-  const reactionScriptBtn = el('button', { text: 'Inclination Script…' });
+  const reactionUpBtn = el('button', { text: '^' });
+  const reactionDownBtn = el('button', { text: 'v' });
+  const reactionScriptBtn = el('button', { text: 'Desirability Script...' });
   reactionButtons.append(addReactionBtn, removeReactionBtn, reactionUpBtn, reactionDownBtn, reactionScriptBtn);
 
   const reactionList = el('select', { attrs: { size: '6' }, className: 'sw-listbox' }) as HTMLSelectElement;
@@ -390,8 +390,10 @@ export function renderEncountersTab(store: Store): HTMLElement {
     openScriptModal({
       storyworld,
       mode: 'script',
+      initialScript: reaction.desirability_script ?? null,
       initialAst: reaction.inclination_script ?? undefined,
-      onConfirm: (_script, ast) => {
+      onConfirm: (script, ast) => {
+        reaction.desirability_script = script;
         reaction.inclination_script = ast;
         touchStoryworld(storyworld);
       },
@@ -438,8 +440,8 @@ export function renderEncountersTab(store: Store): HTMLElement {
   const effectsButtons = el('div', { className: 'sw-button-row' });
   const addEffectBtn = el('button', { text: '+' });
   const removeEffectBtn = el('button', { text: '-' });
-  const effectUpBtn = el('button', { text: '↑' });
-  const effectDownBtn = el('button', { text: '↓' });
+  const effectUpBtn = el('button', { text: '^' });
+  const effectDownBtn = el('button', { text: 'v' });
   effectsButtons.append(addEffectBtn, removeEffectBtn, effectUpBtn, effectDownBtn);
 
   const effectsList = el('select', { attrs: { size: '5' }, className: 'sw-listbox' }) as HTMLSelectElement;
