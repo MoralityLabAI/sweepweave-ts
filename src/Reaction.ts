@@ -2,6 +2,7 @@ import { Encounter } from "./Encounter";
 import { SWScriptElement } from "./SWScriptElement";
 import { Option } from "./Option";
 import { Prerequisite } from "./Prerequisite";
+import { ScriptManager } from "./ScriptManager";
 
 export class Reaction {
     public id: string = '';
@@ -14,6 +15,7 @@ export class Reaction {
     public weight: number = 1;
     public parent_option: Option | null = null;
     public stored_index: number | null = null;
+    public desirability_script: ScriptManager = new ScriptManager();
 
     constructor(text: string = '', id: string = '') {
         this.text = text;
@@ -42,6 +44,7 @@ export class Reaction {
             },
             consequence_id: this.consequence ? this.consequence.id : this.consequence_id,
             weight: this.weight,
+            desirability_script: this.desirability_script.compile(),
             after_effects: this.after_effects.map((effect) => effect.compile()),
         };
     }

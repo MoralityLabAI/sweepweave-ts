@@ -272,6 +272,10 @@ export class Storyworld {
                                     effects_manager.load_from_json_v0_0_21(reactionData.after_effects, this);
                                     reaction.after_effects = effects_manager.script_elements;
                                 }
+                                if (reactionData.desirability_script) {
+                                    reaction.desirability_script = new ScriptManager();
+                                    reaction.desirability_script.load_from_json_v0_0_21(reactionData.desirability_script, this);
+                                }
                                 if (Array.isArray(reactionData.prerequisites)) {
                                     reaction.prerequisites = this.load_prerequisites(reactionData.prerequisites);
                                 }

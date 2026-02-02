@@ -11,6 +11,8 @@ import { EventPointer } from "./EventPointer";
 import { AssignmentOperator } from "./AssignmentOperator";
 import { StringConstant } from "./StringConstant";
 import { Storyworld } from "./Storyworld";
+import { ArithmeticNegationOperator } from "./ArithmeticNegationOperator";
+import { ProximityToOperator } from "./ProximityToOperator";
 
 export class ScriptManager {
     public script_elements: SWScriptElement[] = [];
@@ -130,11 +132,17 @@ export class ScriptManager {
             if (operator_type === "Arithmetic Mean") {
                 return new ArithmeticMeanOperator(operands);
             }
+            if (operator_type === "Arithmetic Negation") {
+                return new ArithmeticNegationOperator(operands[0]);
+            }
             if (operator_type === "Blend") {
                 return new BlendOperator(operands[0], operands[1], operands[2]);
             }
             if (operator_type === "Nudge") {
                 return new NudgeOperator(operands[0], operands[1]);
+            }
+            if (operator_type === "Proximity To") {
+                return new ProximityToOperator(operands[0], operands[1]);
             }
             if (operator_type === "Boolean Comparator") {
                 const subtype = data["operator_subtype"] ?? "NOT";

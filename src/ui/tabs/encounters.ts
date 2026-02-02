@@ -13,6 +13,7 @@ import { UUID } from '../../UUID';
 import { BNumberConstant } from '../../BNumberConstant';
 import { NudgeOperator } from '../../NudgeOperator';
 import { SWScriptElement } from '../../SWScriptElement';
+import { openScriptModal } from '../modals/ScriptModal';
 
 function moveItem<T>(items: T[], from: number, to: number): void {
   if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return;
@@ -275,7 +276,16 @@ export function renderEncountersTab(store: Store): HTMLElement {
   weightRow.append(el('label', { text: 'Weight' }), weightSlider, weightInput);
 
   reactionScriptBtn.addEventListener('click', () => {
-    alert('Script editor placeholder.');
+    const reaction = getSelectedReaction(store.getState());
+    if (!reaction) return;
+    openScriptModal({
+      storyworld,
+      initialScript: reaction.desirability_script ?? null,
+      onConfirm: (script) => {
+        reaction.desirability_script = script;
+        touchStoryworld(storyworld);
+      },
+    });
   });
 
   addReactionBtn.addEventListener('click', () => {

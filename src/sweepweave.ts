@@ -1,4 +1,5 @@
 export * from './Actor';
+export * from './ArithmeticNegationOperator';
 export * from './ArithmeticMeanOperator';
 export * from './AssignmentOperator';
 export * from './BlendOperator';
@@ -13,6 +14,7 @@ export * from './EventPointer';
 export * from './IFIDGenerator';
 export * from './NudgeOperator';
 export * from './Option';
+export * from './ProximityToOperator';
 export * from './Reaction';
 export * from './ScriptManager';
 export * from './Spool';
