@@ -4,14 +4,21 @@ import { ScriptManager } from '../../ScriptManager';
 import { BNumberConstant } from '../../BNumberConstant';
 import { BNumberPointer } from '../../BNumberPointer';
 import { ArithmeticNegationOperator } from '../../ArithmeticNegationOperator';
-import { ProximityToOperator } from '../../ProximityToOperator';
-import { SWScriptElement } from '../../SWScriptElement';
-
-type ScriptNode =
-  | { type: 'Constant'; value: number }
-  | { type: 'BNumberProperty'; characterId: string; propertyId: string }
-  | { type: 'ArithmeticNegation'; child: ScriptNode }
-  | { type: 'ProximityTo'; left: ScriptNode; right: ScriptNode };
+import { ProximityOperator } from '../../ProximityOperator';
+import { AverageOperator } from '../../AverageOperator';
+import { BlendOperator } from '../../BlendOperator';
+import { MaximumOperator } from '../../MaximumOperator';
+import { MinimumOperator } from '../../MinimumOperator';
+import { NudgeOperator } from '../../NudgeOperator';
+import { IfThenOperator } from '../../IfThenOperator';
+import {
+  BoolNode,
+  ScriptNode,
+  createDefaultBoolNode,
+  createDefaultScriptNode,
+  serializeScript,
+  deserializeScript,
+} from '../scriptAst';
 
 interface ModalOptions {
   storyworld: Storyworld;
@@ -19,23 +26,36 @@ interface ModalOptions {
   onConfirm: (script: ScriptManager, ast: ScriptNode) => void;
 }
 
-const paletteItems: ScriptNode['type'][] = [
+const scriptPaletteItems: ScriptNode['type'][] = [
   'Constant',
   'BNumberProperty',
   'ArithmeticNegation',
-  'ProximityTo',
+  'Proximity',
+  'Average',
+  'Blend',
+  'Maximum',
+  'Minimum',
+  'Nudge',
+  'IfThen',
+];
+
+const boolPaletteItems: BoolNode['type'][] = [
+  'Constant',
+  'SpoolActive',
 ];
 
 const nodeLabels: Record<ScriptNode['type'], string> = {
   Constant: 'Constant',
   BNumberProperty: 'BNumber Property',
   ArithmeticNegation: 'Arithmetic Negation',
-  ProximityTo: 'Proximity To',
+  Proximity: 'Proximity',
+  Average: 'Average',
+  Blend: 'Blend',
+  Maximum: 'Maximum',
+  Minimum: 'Minimum',
+  Nudge: 'Nudge',
+  IfThen: 'If Then',
 };
-
-function createDefaultNode(): ScriptNode {
-  return { type: 'Constant', value: 0 };
-}
 
 function createNode(type: ScriptNode['type'], storyworld: Storyworld): ScriptNode {
   if (type === 'Constant') {
@@ -51,20 +71,52 @@ function createNode(type: ScriptNode['type'], storyworld: Storyworld): ScriptNod
     };
   }
   if (type === 'ArithmeticNegation') {
-    return { type: 'ArithmeticNegation', child: createDefaultNode() };
+    return { type: 'ArithmeticNegation', child: createDefaultScriptNode() };
   }
-  return { type: 'ProximityTo', left: createDefaultNode(), right: createDefaultNode() };
+  if (type === 'Proximity') {
+    return { type: 'Proximity', left: createDefaultScriptNode(), right: createDefaultScriptNode() };
+  }
+  if (type === 'Average') {
+    return { type: 'Average', left: createDefaultScriptNode(), right: createDefaultScriptNode() };
+  }
+  if (type === 'Blend') {
+    return {
+      type: 'Blend',
+      left: createDefaultScriptNode(),
+      right: createDefaultScriptNode(),
+      weight: createDefaultScriptNode(),
+    };
+  }
+  if (type === 'Maximum') {
+    return { type: 'Maximum', left: createDefaultScriptNode(), right: createDefaultScriptNode() };
+  }
+  if (type === 'Minimum') {
+    return { type: 'Minimum', left: createDefaultScriptNode(), right: createDefaultScriptNode() };
+  }
+  if (type === 'Nudge') {
+    return { type: 'Nudge', base: createDefaultScriptNode(), nudge: createDefaultScriptNode() };
+  }
+  return {
+    type: 'IfThen',
+    condition: createDefaultBoolNode(),
+    thenNode: createDefaultScriptNode(),
+    elseNode: createDefaultScriptNode(),
+  };
 }
 
 function astFromScript(script: ScriptManager | null, storyworld: Storyworld): ScriptNode {
+  const existing = (script as any)?.ast_json;
+  if (existing) {
+    return deserializeScript(existing);
+  }
   const root = script?.script_elements?.[0];
   if (!root) {
-    return createDefaultNode();
+    return createDefaultScriptNode();
   }
   return convertElementToNode(root, storyworld);
 }
 
-function convertElementToNode(element: SWScriptElement, storyworld: Storyworld): ScriptNode {
+function convertElementToNode(element: any, storyworld: Storyworld): ScriptNode {
   if (element instanceof BNumberConstant) {
     return { type: 'Constant', value: element.get_value() };
   }
@@ -74,30 +126,91 @@ function convertElementToNode(element: SWScriptElement, storyworld: Storyworld):
     return { type: 'BNumberProperty', characterId, propertyId };
   }
   if (element instanceof ArithmeticNegationOperator) {
-    const child = element.operands[0] instanceof SWScriptElement
+    const child = element.operands[0]
       ? convertElementToNode(element.operands[0], storyworld)
-      : createDefaultNode();
+      : createDefaultScriptNode();
     return { type: 'ArithmeticNegation', child };
   }
-  if (element instanceof ProximityToOperator) {
-    const left = element.operands[0] instanceof SWScriptElement
+  if (element instanceof ProximityOperator) {
+    const left = element.operands[0]
       ? convertElementToNode(element.operands[0], storyworld)
-      : createDefaultNode();
-    const right = element.operands[1] instanceof SWScriptElement
+      : createDefaultScriptNode();
+    const right = element.operands[1]
       ? convertElementToNode(element.operands[1], storyworld)
-      : createDefaultNode();
-    return { type: 'ProximityTo', left, right };
+      : createDefaultScriptNode();
+    return { type: 'Proximity', left, right };
   }
-  return createDefaultNode();
+  if (element instanceof AverageOperator) {
+    const left = element.operands[0]
+      ? convertElementToNode(element.operands[0], storyworld)
+      : createDefaultScriptNode();
+    const right = element.operands[1]
+      ? convertElementToNode(element.operands[1], storyworld)
+      : createDefaultScriptNode();
+    return { type: 'Average', left, right };
+  }
+  if (element instanceof BlendOperator) {
+    const left = element.operands[0]
+      ? convertElementToNode(element.operands[0], storyworld)
+      : createDefaultScriptNode();
+    const right = element.operands[1]
+      ? convertElementToNode(element.operands[1], storyworld)
+      : createDefaultScriptNode();
+    const weight = element.operands[2]
+      ? convertElementToNode(element.operands[2], storyworld)
+      : createDefaultScriptNode();
+    return { type: 'Blend', left, right, weight };
+  }
+  if (element instanceof MaximumOperator) {
+    const left = element.operands[0]
+      ? convertElementToNode(element.operands[0], storyworld)
+      : createDefaultScriptNode();
+    const right = element.operands[1]
+      ? convertElementToNode(element.operands[1], storyworld)
+      : createDefaultScriptNode();
+    return { type: 'Maximum', left, right };
+  }
+  if (element instanceof MinimumOperator) {
+    const left = element.operands[0]
+      ? convertElementToNode(element.operands[0], storyworld)
+      : createDefaultScriptNode();
+    const right = element.operands[1]
+      ? convertElementToNode(element.operands[1], storyworld)
+      : createDefaultScriptNode();
+    return { type: 'Minimum', left, right };
+  }
+  if (element instanceof NudgeOperator) {
+    const base = element.operands[0]
+      ? convertElementToNode(element.operands[0], storyworld)
+      : createDefaultScriptNode();
+    const nudge = element.operands[1]
+      ? convertElementToNode(element.operands[1], storyworld)
+      : createDefaultScriptNode();
+    return { type: 'Nudge', base, nudge };
+  }
+  if (element instanceof IfThenOperator) {
+    const condition = element.condition
+      ? convertBoolToNode(element.condition, storyworld)
+      : createDefaultBoolNode();
+    const thenNode = element.then_script
+      ? convertElementToNode(element.then_script, storyworld)
+      : createDefaultScriptNode();
+    const elseNode = element.else_script
+      ? convertElementToNode(element.else_script, storyworld)
+      : createDefaultScriptNode();
+    return { type: 'IfThen', condition, thenNode, elseNode };
+  }
+  return createDefaultScriptNode();
 }
 
 function scriptFromAst(ast: ScriptNode, storyworld: Storyworld): ScriptManager {
   const script = new ScriptManager();
   script.add_script_element(convertNodeToElement(ast, storyworld));
+  (script as any).ast_json = serializeScript(ast);
   return script;
 }
 
-function convertNodeToElement(node: ScriptNode, storyworld: Storyworld): SWScriptElement {
+function convertNodeToElement(node: ScriptNode, storyworld: Storyworld): any {
   if (node.type === 'Constant') {
     return new BNumberConstant(node.value);
   }
@@ -108,10 +221,66 @@ function convertNodeToElement(node: ScriptNode, storyworld: Storyworld): SWScrip
   if (node.type === 'ArithmeticNegation') {
     return new ArithmeticNegationOperator(convertNodeToElement(node.child, storyworld));
   }
-  return new ProximityToOperator(
-    convertNodeToElement(node.left, storyworld),
-    convertNodeToElement(node.right, storyworld)
+  if (node.type === 'Proximity') {
+    return new ProximityOperator(
+      convertNodeToElement(node.left, storyworld),
+      convertNodeToElement(node.right, storyworld)
+    );
+  }
+  if (node.type === 'Average') {
+    return new AverageOperator(
+      convertNodeToElement(node.left, storyworld),
+      convertNodeToElement(node.right, storyworld)
+    );
+  }
+  if (node.type === 'Blend') {
+    return new BlendOperator(
+      convertNodeToElement(node.left, storyworld),
+      convertNodeToElement(node.right, storyworld),
+      convertNodeToElement(node.weight, storyworld)
+    );
+  }
+  if (node.type === 'Maximum') {
+    return new MaximumOperator(
+      convertNodeToElement(node.left, storyworld),
+      convertNodeToElement(node.right, storyworld)
+    );
+  }
+  if (node.type === 'Minimum') {
+    return new MinimumOperator(
+      convertNodeToElement(node.left, storyworld),
+      convertNodeToElement(node.right, storyworld)
+    );
+  }
+  if (node.type === 'Nudge') {
+    return new NudgeOperator(
+      convertNodeToElement(node.base, storyworld),
+      convertNodeToElement(node.nudge, storyworld)
+    );
+  }
+  return new IfThenOperator(
+    convertBoolToElement(node.condition, storyworld),
+    convertNodeToElement(node.thenNode, storyworld),
+    convertNodeToElement(node.elseNode, storyworld)
   );
+}
+
+function convertBoolToElement(node: BoolNode, storyworld: Storyworld): any {
+  if (node.type === 'Constant') {
+    return { type: 'Constant', value: node.value };
+  }
+  return { type: 'SpoolActive', spoolId: node.spoolId, storyworld };
+}
+
+function convertBoolToNode(node: any, storyworld: Storyworld): BoolNode {
+  if (node?.type === 'Constant') {
+    return { type: 'Constant', value: Boolean(node.value) };
+  }
+  if (node?.type === 'SpoolActive') {
+    return { type: 'SpoolActive', spoolId: node.spoolId ?? '' };
+  }
+  const spool = storyworld.spools[0];
+  return { type: 'SpoolActive', spoolId: spool?.id ?? '' };
 }
 
 function getNodeLabel(node: ScriptNode, storyworld: Storyworld): string {
@@ -125,34 +294,113 @@ function getNodeLabel(node: ScriptNode, storyworld: Storyworld): string {
     const propertyName = property?.property_name || 'Property';
     return `${characterName} [${propertyName}]`;
   }
+  if (node.type === 'IfThen') {
+    return 'If Then';
+  }
   return nodeLabels[node.type];
 }
 
-function getNodeByPath(root: ScriptNode, path: string[]): ScriptNode {
-  let current = root;
+type SelectedNode = { kind: 'script'; node: ScriptNode } | { kind: 'bool'; node: BoolNode };
+
+function getNodeByPath(root: ScriptNode, path: string[]): SelectedNode {
+  let current: ScriptNode | BoolNode = root;
+  let kind: 'script' | 'bool' = 'script';
   for (const key of path) {
-    if (current.type === 'ArithmeticNegation' && key === 'child') {
-      current = current.child;
-    } else if (current.type === 'ProximityTo' && key === 'left') {
-      current = current.left;
-    } else if (current.type === 'ProximityTo' && key === 'right') {
-      current = current.right;
+    if (kind === 'script' && (current as ScriptNode).type === 'ArithmeticNegation' && key === 'child') {
+      current = (current as ScriptNode).child;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Proximity' && key === 'left') {
+      current = (current as ScriptNode).left;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Proximity' && key === 'right') {
+      current = (current as ScriptNode).right;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Average' && key === 'left') {
+      current = (current as ScriptNode).left;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Average' && key === 'right') {
+      current = (current as ScriptNode).right;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Blend' && key === 'left') {
+      current = (current as ScriptNode).left;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Blend' && key === 'right') {
+      current = (current as ScriptNode).right;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Blend' && key === 'weight') {
+      current = (current as ScriptNode).weight;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Maximum' && key === 'left') {
+      current = (current as ScriptNode).left;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Maximum' && key === 'right') {
+      current = (current as ScriptNode).right;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Minimum' && key === 'left') {
+      current = (current as ScriptNode).left;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Minimum' && key === 'right') {
+      current = (current as ScriptNode).right;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Nudge' && key === 'base') {
+      current = (current as ScriptNode).base;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'Nudge' && key === 'nudge') {
+      current = (current as ScriptNode).nudge;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'IfThen' && key === 'condition') {
+      current = (current as ScriptNode).condition;
+      kind = 'bool';
+    } else if (kind === 'script' && (current as ScriptNode).type === 'IfThen' && key === 'thenNode') {
+      current = (current as ScriptNode).thenNode;
+    } else if (kind === 'script' && (current as ScriptNode).type === 'IfThen' && key === 'elseNode') {
+      current = (current as ScriptNode).elseNode;
     }
   }
-  return current;
+  return { kind, node: current as any };
 }
 
-function replaceNodeByPath(root: ScriptNode, path: string[], next: ScriptNode): ScriptNode {
+function replaceNodeByPath(root: ScriptNode, path: string[], next: ScriptNode | BoolNode): ScriptNode {
   if (path.length === 0) {
-    return next;
+    return next as ScriptNode;
   }
   const [key, ...rest] = path;
   if (root.type === 'ArithmeticNegation' && key === 'child') {
-    root.child = replaceNodeByPath(root.child, rest, next);
-  } else if (root.type === 'ProximityTo' && key === 'left') {
-    root.left = replaceNodeByPath(root.left, rest, next);
-  } else if (root.type === 'ProximityTo' && key === 'right') {
-    root.right = replaceNodeByPath(root.right, rest, next);
+    return { ...root, child: replaceNodeByPath(root.child, rest, next) };
+  }
+  if (root.type === 'Proximity' && key === 'left') {
+    return { ...root, left: replaceNodeByPath(root.left, rest, next) };
+  }
+  if (root.type === 'Proximity' && key === 'right') {
+    return { ...root, right: replaceNodeByPath(root.right, rest, next) };
+  }
+  if (root.type === 'Average' && key === 'left') {
+    return { ...root, left: replaceNodeByPath(root.left, rest, next) };
+  }
+  if (root.type === 'Average' && key === 'right') {
+    return { ...root, right: replaceNodeByPath(root.right, rest, next) };
+  }
+  if (root.type === 'Blend' && key === 'left') {
+    return { ...root, left: replaceNodeByPath(root.left, rest, next) };
+  }
+  if (root.type === 'Blend' && key === 'right') {
+    return { ...root, right: replaceNodeByPath(root.right, rest, next) };
+  }
+  if (root.type === 'Blend' && key === 'weight') {
+    return { ...root, weight: replaceNodeByPath(root.weight, rest, next) };
+  }
+  if (root.type === 'Maximum' && key === 'left') {
+    return { ...root, left: replaceNodeByPath(root.left, rest, next) };
+  }
+  if (root.type === 'Maximum' && key === 'right') {
+    return { ...root, right: replaceNodeByPath(root.right, rest, next) };
+  }
+  if (root.type === 'Minimum' && key === 'left') {
+    return { ...root, left: replaceNodeByPath(root.left, rest, next) };
+  }
+  if (root.type === 'Minimum' && key === 'right') {
+    return { ...root, right: replaceNodeByPath(root.right, rest, next) };
+  }
+  if (root.type === 'Nudge' && key === 'base') {
+    return { ...root, base: replaceNodeByPath(root.base, rest, next) };
+  }
+  if (root.type === 'Nudge' && key === 'nudge') {
+    return { ...root, nudge: replaceNodeByPath(root.nudge, rest, next) };
+  }
+  if (root.type === 'IfThen' && key === 'condition') {
+    return { ...root, condition: next as BoolNode };
+  }
+  if (root.type === 'IfThen' && key === 'thenNode') {
+    return { ...root, thenNode: replaceNodeByPath(root.thenNode, rest, next) };
+  }
+  if (root.type === 'IfThen' && key === 'elseNode') {
+    return { ...root, elseNode: replaceNodeByPath(root.elseNode, rest, next) };
   }
   return root;
 }
@@ -176,9 +424,12 @@ export function openScriptModal(options: ModalOptions): void {
   const renderTree = () => {
     clear(treePane);
     const list = el('ul', { className: 'sw-tree' });
-    const renderNode = (node: ScriptNode, path: string[]) => {
+    const renderNode = (node: ScriptNode | BoolNode, path: string[], kind: 'script' | 'bool') => {
       const li = el('li', { className: 'sw-tree-node' });
-      const label = el('div', { className: 'sw-tree-label', text: getNodeLabel(node, storyworld) });
+      const labelText = kind === 'script'
+        ? getNodeLabel(node as ScriptNode, storyworld)
+        : (node.type === 'SpoolActive' ? 'Spool Active' : `Bool Constant (${(node as BoolNode).value})`);
+      const label = el('div', { className: 'sw-tree-label', text: labelText });
       if (path.join('.') === selectedPath.join('.')) {
         label.classList.add('selected');
       }
@@ -187,23 +438,37 @@ export function openScriptModal(options: ModalOptions): void {
         render();
       });
       li.appendChild(label);
-      const children: { node: ScriptNode; key: string }[] = [];
-      if (node.type === 'ArithmeticNegation') {
-        children.push({ node: node.child, key: 'child' });
-      } else if (node.type === 'ProximityTo') {
-        children.push({ node: node.left, key: 'left' });
-        children.push({ node: node.right, key: 'right' });
+      const children: { node: ScriptNode | BoolNode; key: string; kind: 'script' | 'bool' }[] = [];
+      if (kind === 'script') {
+        const scriptNode = node as ScriptNode;
+        if (scriptNode.type === 'ArithmeticNegation') {
+          children.push({ node: scriptNode.child, key: 'child', kind: 'script' });
+        } else if (scriptNode.type === 'Proximity' || scriptNode.type === 'Average' || scriptNode.type === 'Maximum' || scriptNode.type === 'Minimum') {
+          children.push({ node: scriptNode.left, key: 'left', kind: 'script' });
+          children.push({ node: scriptNode.right, key: 'right', kind: 'script' });
+        } else if (scriptNode.type === 'Blend') {
+          children.push({ node: scriptNode.left, key: 'left', kind: 'script' });
+          children.push({ node: scriptNode.right, key: 'right', kind: 'script' });
+          children.push({ node: scriptNode.weight, key: 'weight', kind: 'script' });
+        } else if (scriptNode.type === 'Nudge') {
+          children.push({ node: scriptNode.base, key: 'base', kind: 'script' });
+          children.push({ node: scriptNode.nudge, key: 'nudge', kind: 'script' });
+        } else if (scriptNode.type === 'IfThen') {
+          children.push({ node: scriptNode.condition, key: 'condition', kind: 'bool' });
+          children.push({ node: scriptNode.thenNode, key: 'thenNode', kind: 'script' });
+          children.push({ node: scriptNode.elseNode, key: 'elseNode', kind: 'script' });
+        }
       }
       if (children.length > 0) {
         const childList = el('ul', { className: 'sw-tree' });
         for (const child of children) {
-          childList.appendChild(renderNode(child.node, [...path, child.key]));
+          childList.appendChild(renderNode(child.node, [...path, child.key], child.kind));
         }
         li.appendChild(childList);
       }
       return li;
     };
-    list.appendChild(renderNode(ast, []));
+    list.appendChild(renderNode(ast, [], 'script'));
     treePane.appendChild(list);
   };
 
@@ -212,63 +477,104 @@ export function openScriptModal(options: ModalOptions): void {
     const palette = el('div', { className: 'sw-palette' });
     const title = el('div', { className: 'sw-section-header', text: 'Operators' });
     palette.appendChild(title);
-    paletteItems.forEach((item) => {
-      const button = el('button', { text: nodeLabels[item] });
-      button.addEventListener('click', () => {
-        const next = createNode(item, storyworld);
-        ast = replaceNodeByPath(ast, selectedPath, next);
-        render();
+    const selection = getNodeByPath(ast, selectedPath);
+    if (selection.kind === 'script') {
+      scriptPaletteItems.forEach((item) => {
+        const button = el('button', { text: nodeLabels[item] });
+        button.addEventListener('click', () => {
+          const next = createNode(item, storyworld);
+          ast = replaceNodeByPath(ast, selectedPath, next);
+          render();
+        });
+        palette.appendChild(button);
       });
-      palette.appendChild(button);
-    });
+    } else {
+      boolPaletteItems.forEach((item) => {
+        const button = el('button', { text: item === 'Constant' ? 'Constant' : 'Spool Active' });
+        button.addEventListener('click', () => {
+          const next: BoolNode =
+            item === 'Constant'
+              ? { type: 'Constant', value: false }
+              : { type: 'SpoolActive', spoolId: storyworld.spools[0]?.id ?? '' };
+          ast = replaceNodeByPath(ast, selectedPath, next);
+          render();
+        });
+        palette.appendChild(button);
+      });
+    }
 
     const inspector = el('div', { className: 'sw-inspector' });
-    const selectedNode = getNodeByPath(ast, selectedPath);
-    if (selectedNode.type === 'Constant') {
-      const slider = el('input', { attrs: { type: 'range', min: '-1', max: '1', step: '0.01' } }) as HTMLInputElement;
-      const input = el('input', { attrs: { type: 'number', min: '-1', max: '1', step: '0.01' } }) as HTMLInputElement;
-      slider.value = String(selectedNode.value);
-      input.value = String(selectedNode.value);
-      const updateValue = (value: string) => {
-        const numeric = Number(value);
-        selectedNode.value = numeric;
-        slider.value = String(numeric);
-        input.value = String(numeric);
-        renderTree();
-      };
-      slider.addEventListener('input', () => updateValue(slider.value));
-      input.addEventListener('input', () => updateValue(input.value));
-      inspector.append(el('div', { className: 'sw-section-header', text: 'Constant' }), slider, input);
-    } else if (selectedNode.type === 'BNumberProperty') {
-      const characterSelect = el('select') as HTMLSelectElement;
-      const propertySelect = el('select') as HTMLSelectElement;
-      for (const character of storyworld.characters) {
-        const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
-        if (character.id === selectedNode.characterId) opt.selected = true;
-        characterSelect.appendChild(opt);
+    if (selection.kind === 'script') {
+      const selectedNode = selection.node;
+      if (selectedNode.type === 'Constant') {
+        const slider = el('input', { attrs: { type: 'range', min: '0', max: '1', step: '0.01' } }) as HTMLInputElement;
+        const input = el('input', { attrs: { type: 'number', min: '0', max: '1', step: '0.01' } }) as HTMLInputElement;
+        slider.value = String(selectedNode.value);
+        input.value = String(selectedNode.value);
+        const updateValue = (value: string) => {
+          const numeric = Number(value);
+          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, value: numeric });
+          slider.value = String(numeric);
+          input.value = String(numeric);
+          renderTree();
+        };
+        slider.addEventListener('input', () => updateValue(slider.value));
+        input.addEventListener('input', () => updateValue(input.value));
+        inspector.append(el('div', { className: 'sw-section-header', text: 'Constant' }), slider, input);
+      } else if (selectedNode.type === 'BNumberProperty') {
+        const characterSelect = el('select') as HTMLSelectElement;
+        const propertySelect = el('select') as HTMLSelectElement;
+        for (const character of storyworld.characters) {
+          const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
+          if (character.id === selectedNode.characterId) opt.selected = true;
+          characterSelect.appendChild(opt);
+        }
+        for (const prop of storyworld.authored_properties) {
+          const opt = el('option', { text: prop.property_name || prop.id, attrs: { value: prop.id } }) as HTMLOptionElement;
+          if (prop.id === selectedNode.propertyId) opt.selected = true;
+          propertySelect.appendChild(opt);
+        }
+        characterSelect.addEventListener('change', () => {
+          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, characterId: characterSelect.value });
+          renderTree();
+        });
+        propertySelect.addEventListener('change', () => {
+          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, propertyId: propertySelect.value });
+          renderTree();
+        });
+        inspector.append(
+          el('div', { className: 'sw-section-header', text: 'BNumber Property' }),
+          el('label', { text: 'Character' }),
+          characterSelect,
+          el('label', { text: 'Property' }),
+          propertySelect
+        );
+      } else {
+        inspector.append(el('div', { className: 'sw-section-header', text: nodeLabels[selectedNode.type] }));
       }
-      for (const prop of storyworld.authored_properties) {
-        const opt = el('option', { text: prop.property_name || prop.id, attrs: { value: prop.id } }) as HTMLOptionElement;
-        if (prop.id === selectedNode.propertyId) opt.selected = true;
-        propertySelect.appendChild(opt);
-      }
-      characterSelect.addEventListener('change', () => {
-        selectedNode.characterId = characterSelect.value;
-        renderTree();
-      });
-      propertySelect.addEventListener('change', () => {
-        selectedNode.propertyId = propertySelect.value;
-        renderTree();
-      });
-      inspector.append(
-        el('div', { className: 'sw-section-header', text: 'BNumber Property' }),
-        el('label', { text: 'Character' }),
-        characterSelect,
-        el('label', { text: 'Property' }),
-        propertySelect
-      );
     } else {
-      inspector.append(el('div', { className: 'sw-section-header', text: nodeLabels[selectedNode.type] }));
+      const selectedNode = selection.node;
+      if (selectedNode.type === 'Constant') {
+        const checkbox = el('input', { attrs: { type: 'checkbox' } }) as HTMLInputElement;
+        checkbox.checked = selectedNode.value;
+        checkbox.addEventListener('change', () => {
+          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, value: checkbox.checked });
+          renderTree();
+        });
+        inspector.append(el('div', { className: 'sw-section-header', text: 'Boolean Constant' }), checkbox);
+      } else {
+        const spoolSelect = el('select') as HTMLSelectElement;
+        for (const spool of storyworld.spools) {
+          const opt = el('option', { text: spool.name || spool.id, attrs: { value: spool.id } }) as HTMLOptionElement;
+          if (spool.id === selectedNode.spoolId) opt.selected = true;
+          spoolSelect.appendChild(opt);
+        }
+        spoolSelect.addEventListener('change', () => {
+          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, spoolId: spoolSelect.value });
+          renderTree();
+        });
+        inspector.append(el('div', { className: 'sw-section-header', text: 'Spool Active' }), spoolSelect);
+      }
     }
 
     palette.appendChild(inspector);

@@ -276,6 +276,9 @@ export class Storyworld {
                                     reaction.desirability_script = new ScriptManager();
                                     reaction.desirability_script.load_from_json_v0_0_21(reactionData.desirability_script, this);
                                 }
+                                if (reactionData.desirability_ast) {
+                                    (reaction.desirability_script as any).ast_json = reactionData.desirability_ast;
+                                }
                                 if (Array.isArray(reactionData.prerequisites)) {
                                     reaction.prerequisites = this.load_prerequisites(reactionData.prerequisites);
                                 }

@@ -45,6 +45,7 @@ export class Reaction {
             consequence_id: this.consequence ? this.consequence.id : this.consequence_id,
             weight: this.weight,
             desirability_script: this.desirability_script.compile(),
+            desirability_ast: (this.desirability_script as any).ast_json ?? null,
             after_effects: this.after_effects.map((effect) => effect.compile()),
         };
     }

@@ -13,6 +13,11 @@ import { StringConstant } from "./StringConstant";
 import { Storyworld } from "./Storyworld";
 import { ArithmeticNegationOperator } from "./ArithmeticNegationOperator";
 import { ProximityToOperator } from "./ProximityToOperator";
+import { ProximityOperator } from "./ProximityOperator";
+import { AverageOperator } from "./AverageOperator";
+import { MaximumOperator } from "./MaximumOperator";
+import { MinimumOperator } from "./MinimumOperator";
+import { IfThenOperator } from "./IfThenOperator";
 
 export class ScriptManager {
     public script_elements: SWScriptElement[] = [];
@@ -132,6 +137,9 @@ export class ScriptManager {
             if (operator_type === "Arithmetic Mean") {
                 return new ArithmeticMeanOperator(operands);
             }
+            if (operator_type === "Average") {
+                return new AverageOperator(operands[0], operands[1]);
+            }
             if (operator_type === "Arithmetic Negation") {
                 return new ArithmeticNegationOperator(operands[0]);
             }
@@ -141,8 +149,25 @@ export class ScriptManager {
             if (operator_type === "Nudge") {
                 return new NudgeOperator(operands[0], operands[1]);
             }
+            if (operator_type === "Maximum") {
+                return new MaximumOperator(operands[0], operands[1]);
+            }
+            if (operator_type === "Minimum") {
+                return new MinimumOperator(operands[0], operands[1]);
+            }
+            if (operator_type === "Proximity") {
+                return new ProximityOperator(operands[0], operands[1]);
+            }
             if (operator_type === "Proximity To") {
                 return new ProximityToOperator(operands[0], operands[1]);
+            }
+            if (operator_type === "If Then") {
+                const condition = data["condition"];
+                const thenScript = data["then_script"];
+                const elseScript = data["else_script"];
+                const thenNode = thenScript ? this.parse_script_element(thenScript, storyworld) : null;
+                const elseNode = elseScript ? this.parse_script_element(elseScript, storyworld) : null;
+                return new IfThenOperator(condition, thenNode, elseNode);
             }
             if (operator_type === "Boolean Comparator") {
                 const subtype = data["operator_subtype"] ?? "NOT";
