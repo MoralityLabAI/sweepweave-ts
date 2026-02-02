@@ -32,7 +32,7 @@ export class Actor {
         return {}; // Placeholder
     }
 
-    public set_as_copy_of(original: Actor): void {
+    public set_as_copy_of(original: this): void {
         this.id = original.id;
         this.char_name = original.char_name;
         this.bnumber_properties = new Map(original.bnumber_properties);

@@ -1,6 +1,7 @@
 import { JSDOM } from 'jsdom';
 import { StoryworldIO } from '../src/StoryworldIO';
 import { Storyworld } from '../src/Storyworld';
+import { vi } from 'vitest';
 
 describe('Storyworld Loading', () => {
   let dom: JSDOM;
@@ -8,11 +9,11 @@ describe('Storyworld Loading', () => {
   beforeEach(() => {
     dom = new JSDOM();
     // Mock console.error to keep test output clean and handle the AI's intended requirement
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should correctly load diplo1.json into a Storyworld object', () => {

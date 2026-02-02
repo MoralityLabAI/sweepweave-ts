@@ -10,7 +10,7 @@ export class Spool {
         this.id = id;
     }
 
-    public set_as_copy_of(original: Spool): void {
+    public set_as_copy_of(original: this): void {
         this.id = original.id;
     }
 

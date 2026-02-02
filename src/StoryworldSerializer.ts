@@ -22,7 +22,8 @@ export class StoryworldSerializer {
         for (const entry of storyworld.spools) {
             file_data["spools"].push(entry.compile());
         }
-        file_data["unique_id_seeds"] = [...storyworld.unique_id_seeds];
+        // FIX: Change [...] to {...} because unique_id_seeds is now an object
+        file_data["unique_id_seeds"] = { ...storyworld.unique_id_seeds };
         file_data["storyworld_title"] = storyworld.storyworld_title;
         file_data["storyworld_author"] = storyworld.storyworld_author;
         file_data["debug_mode"] = storyworld.storyworld_debug_mode_on;

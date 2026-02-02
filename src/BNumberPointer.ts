@@ -85,12 +85,10 @@ export class BNumberPointer extends SWPointer {
         return output;
     }
 
-    public override set_as_copy_of(original: any): void {
-        if (original instanceof BNumberPointer) {
-            this.character = original.character;
-            this.coefficient = original.coefficient;
-            this.keyring = [...original.keyring];
-        }
+    public override set_as_copy_of(original: this): void {
+        this.character = original.character;
+        this.coefficient = original.coefficient;
+        this.keyring = [...original.keyring];
     }
 
     public replace_character_with_character(search_term: Actor, replacement: Actor): void {
