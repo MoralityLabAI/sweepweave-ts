@@ -148,7 +148,10 @@ export function renderGraphViewTab(store: Store): HTMLElement {
     return value as AxisKey;
   };
 
+  let fallbackRendered = false;
   const renderFallback2d = () => {
+    if (fallbackRendered) return container;
+    fallbackRendered = true;
     const message = el('div', {
       className: 'sw-graph-fallback',
       text: 'WebGL unavailable. Showing 2D preview instead.',
@@ -243,48 +246,27 @@ export function renderGraphViewTab(store: Store): HTMLElement {
     return renderFallback2d();
   }
 
-  const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x05060a, 0.03);
+  let scene: THREE.Scene | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
-  try {
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-  } catch {
-    return renderFallback2d();
-  }
-  if (!renderer) {
-    return renderFallback2d();
-  }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(canvasWrap.clientWidth || 800, canvasWrap.clientHeight || 600);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  canvasWrap.appendChild(renderer.domElement);
-
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
-  camera.position.set(0, 12, 20);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-
-  scene.add(new THREE.AmbientLight(0x9aa7ff, 0.3));
-  const key = new THREE.DirectionalLight(0xffffff, 0.9);
-  key.position.set(8, 12, 6);
-  scene.add(key);
-
-  const axes = new THREE.AxesHelper(8);
-  (axes.material as THREE.Material).opacity = 0.6;
-  (axes.material as THREE.Material).transparent = true;
-  scene.add(axes);
-
-  const pointsGroup = new THREE.Group();
-  scene.add(pointsGroup);
-
-  const endingsGroup = new THREE.Group();
-  scene.add(endingsGroup);
-
-  const labelLayer = el('div', { className: 'sw-graph-label-layer' });
-  canvasWrap.appendChild(labelLayer);
+  let camera: THREE.PerspectiveCamera | null = null;
+  let controls: OrbitControls | null = null;
+  let pointsGroup: THREE.Group | null = null;
+  let endingsGroup: THREE.Group | null = null;
+  let labelLayer: HTMLDivElement | null = null;
   let labels: { mesh: THREE.Object3D; el: HTMLDivElement }[] = [];
+  let animationFrame = 0;
+  let resizeObserver: ResizeObserver | null = null;
+  let t = 0;
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  const tooltip = el('div', { className: 'sw-graph-tooltip' });
+  tooltip.style.display = 'none';
+  const leaveHandler = () => {
+    tooltip.style.display = 'none';
+  };
 
   const buildPoints = () => {
+    if (!pointsGroup || !endingsGroup || !labelLayer) return;
     pointsGroup.clear();
     endingsGroup.clear();
     labelLayer.innerHTML = '';
@@ -339,33 +321,28 @@ export function renderGraphViewTab(store: Store): HTMLElement {
     buildPoints();
   };
 
-  axisSelect.select.addEventListener('change', () => {
-    axisState = { ...axisState, [activeAxis]: parseAxis(axisSelect.select.value) };
-    updateReadout();
-    updateAxes();
-  });
-
-  presetSelect.addEventListener('change', () => {
-    const preset = presets[Number(presetSelect.value)];
-    if (!preset) return;
-    axisState = { ...preset.axes };
-    updateReadout();
-    updateAxes();
-    updateSelectValue();
-  });
-
-  buildPoints();
-  updateReadout();
-  updateSelectValue();
-
-  let t = 0;
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-  const tooltip = el('div', { className: 'sw-graph-tooltip' });
-  tooltip.style.display = 'none';
-  canvasWrap.appendChild(tooltip);
+  const updateLabels = () => {
+    if (!renderer || !camera) return;
+    labels.forEach(({ mesh, el: label }) => {
+      const pos = mesh.position.clone();
+      pos.project(camera);
+      if (pos.z < -1 || pos.z > 1) {
+        label.style.display = 'none';
+        return;
+      }
+      const x = (pos.x * 0.5 + 0.5) * renderer.domElement.clientWidth;
+      const y = (-pos.y * 0.5 + 0.5) * renderer.domElement.clientHeight;
+      if (x < 0 || y < 0 || x > renderer.domElement.clientWidth || y > renderer.domElement.clientHeight) {
+        label.style.display = 'none';
+        return;
+      }
+      label.style.display = 'block';
+      label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+    });
+  };
 
   const handleHover = (event: MouseEvent) => {
+    if (!renderer || !camera || !pointsGroup || !endingsGroup) return;
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -387,12 +364,8 @@ export function renderGraphViewTab(store: Store): HTMLElement {
     }
   };
 
-  renderer.domElement.addEventListener('mousemove', handleHover);
-  renderer.domElement.addEventListener('mouseleave', () => {
-    tooltip.style.display = 'none';
-  });
-
-  renderer.domElement.addEventListener('click', (event) => {
+  const handleClick = (event: MouseEvent) => {
+    if (!renderer || !camera || !pointsGroup || !endingsGroup) return;
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -415,48 +388,171 @@ export function renderGraphViewTab(store: Store): HTMLElement {
         });
       }
     }
-  });
-
-  const animate = () => {
-    t += 0.01;
-    endingsGroup.children.forEach((child, index) => {
-      const mesh = child as THREE.Mesh;
-      const mat = mesh.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.7 + Math.sin(t + index) * 0.3;
-    });
-    labels.forEach(({ mesh, el: label }) => {
-      const pos = mesh.position.clone();
-      pos.project(camera);
-      if (pos.z < -1 || pos.z > 1) {
-        label.style.display = 'none';
-        return;
-      }
-      const x = (pos.x * 0.5 + 0.5) * renderer.domElement.clientWidth;
-      const y = (-pos.y * 0.5 + 0.5) * renderer.domElement.clientHeight;
-      if (x < 0 || y < 0 || x > renderer.domElement.clientWidth || y > renderer.domElement.clientHeight) {
-        label.style.display = 'none';
-        return;
-      }
-      label.style.display = 'block';
-      label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
-    });
-    controls.update();
-    renderer.render(scene, camera);
-    requestAnimationFrame(animate);
   };
-  animate();
 
   const resize = () => {
+    if (!renderer || !camera) return;
     const width = canvasWrap.clientWidth || 800;
     const height = canvasWrap.clientHeight || 600;
     renderer.setSize(width, height);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    updateLabels();
   };
-  window.addEventListener('resize', resize);
-  const resizeObserver = new ResizeObserver(resize);
-  resizeObserver.observe(canvasWrap);
-  resize();
+
+  const disposeScene = () => {
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+    }
+    if (renderer) {
+      renderer.domElement.removeEventListener('mousemove', handleHover);
+      renderer.domElement.removeEventListener('mouseleave', leaveHandler);
+      renderer.domElement.removeEventListener('click', handleClick);
+      renderer.dispose();
+      renderer.forceContextLoss();
+      if (renderer.domElement.parentElement) {
+        renderer.domElement.parentElement.removeChild(renderer.domElement);
+      }
+    }
+    if (controls) controls.dispose();
+    if (scene) {
+      scene.traverse((child) => {
+        if ((child as THREE.Mesh).geometry) {
+          (child as THREE.Mesh).geometry.dispose();
+        }
+        const material = (child as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+        if (material) {
+          if (Array.isArray(material)) {
+            material.forEach((mat) => mat.dispose());
+          } else {
+            material.dispose();
+          }
+        }
+      });
+    }
+    if (resizeObserver) resizeObserver.disconnect();
+    if (labelLayer && labelLayer.parentElement) {
+      labelLayer.parentElement.removeChild(labelLayer);
+    }
+    if (tooltip.parentElement) tooltip.parentElement.removeChild(tooltip);
+    renderer = null;
+    controls = null;
+    scene = null;
+    camera = null;
+    pointsGroup = null;
+    endingsGroup = null;
+    labelLayer = null;
+    labels = [];
+  };
+
+  const initWebGL = () => {
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x05060a, 0.03);
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: 'high-performance',
+        failIfMajorPerformanceCaveat: false,
+      });
+    } catch {
+      return false;
+    }
+    if (!renderer) return false;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(canvasWrap.clientWidth || 800, canvasWrap.clientHeight || 600);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    canvasWrap.appendChild(renderer.domElement);
+
+    camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
+    camera.position.set(0, 12, 20);
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0x9aa7ff, 0.3));
+    const key = new THREE.DirectionalLight(0xffffff, 0.9);
+    key.position.set(8, 12, 6);
+    scene.add(key);
+
+    const axes = new THREE.AxesHelper(8);
+    (axes.material as THREE.Material).opacity = 0.6;
+    (axes.material as THREE.Material).transparent = true;
+    scene.add(axes);
+
+    pointsGroup = new THREE.Group();
+    scene.add(pointsGroup);
+    endingsGroup = new THREE.Group();
+    scene.add(endingsGroup);
+
+    labelLayer = el('div', { className: 'sw-graph-label-layer' });
+    canvasWrap.appendChild(labelLayer);
+
+    canvasWrap.appendChild(tooltip);
+    renderer.domElement.addEventListener('mousemove', handleHover);
+    renderer.domElement.addEventListener('mouseleave', leaveHandler);
+    renderer.domElement.addEventListener('click', handleClick);
+
+    renderer.domElement.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault();
+      disposeScene();
+      renderFallback2d();
+    });
+
+    renderer.domElement.addEventListener('webglcontextrestored', () => {
+      disposeScene();
+      requestAnimationFrame(() => initWebGL());
+    });
+
+    resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvasWrap);
+    resize();
+    return true;
+  };
+
+  const startAnimation = () => {
+    if (!renderer || !scene || !camera || !controls || !endingsGroup) return;
+    const animate = () => {
+      t += 0.01;
+      endingsGroup.children.forEach((child, index) => {
+        const mesh = child as THREE.Mesh;
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 0.7 + Math.sin(t + index) * 0.3;
+      });
+      updateLabels();
+      controls.update();
+      renderer.render(scene, camera);
+      animationFrame = requestAnimationFrame(animate);
+    };
+    animate();
+  };
+
+  axisSelect.select.addEventListener('change', () => {
+    axisState = { ...axisState, [activeAxis]: parseAxis(axisSelect.select.value) };
+    updateReadout();
+    updateAxes();
+  });
+
+  presetSelect.addEventListener('change', () => {
+    const preset = presets[Number(presetSelect.value)];
+    if (!preset) return;
+    axisState = { ...preset.axes };
+    updateReadout();
+    updateAxes();
+    updateSelectValue();
+  });
+
+  updateReadout();
+  updateSelectValue();
+
+  requestAnimationFrame(() => {
+    const ok = initWebGL();
+    if (!ok) {
+      renderFallback2d();
+      return;
+    }
+    buildPoints();
+    startAnimation();
+  });
 
   return container;
 }
