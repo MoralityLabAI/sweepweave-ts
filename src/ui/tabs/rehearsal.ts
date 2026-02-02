@@ -89,6 +89,60 @@ const computeEventIndex = (rehearsal: Rehearsal) => {
   return { encounterMap, pathCounts, reachable, pathSamples };
 };
 
+const computeCastIndex = (rehearsal: Rehearsal) => {
+  const stats: {
+    characterId: string;
+    characterName: string;
+    propertyId: string;
+    propertyName: string;
+    min: number;
+    max: number;
+    avg: number;
+  }[] = [];
+  const storyworld = rehearsal.storyworld;
+  const records = rehearsal.hb_record_list;
+  for (const character of storyworld.characters) {
+    for (const prop of storyworld.authored_properties) {
+      const values: number[] = [];
+      for (const record of records) {
+        const map = record.relationship_values[character.id];
+        if (map && map instanceof Map && map.has(prop.id)) {
+          values.push(map.get(prop.id));
+        }
+      }
+      const fallback = prop.default_value ?? 0;
+      const min = values.length ? Math.min(...values) : fallback;
+      const max = values.length ? Math.max(...values) : fallback;
+      const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : fallback;
+      stats.push({
+        characterId: character.id,
+        characterName: character.name || character.id,
+        propertyId: prop.id,
+        propertyName: prop.property_name || prop.id,
+        min,
+        max,
+        avg,
+      });
+    }
+  }
+  return stats;
+};
+
+const computeOutcomeIndex = (rehearsal: Rehearsal) => {
+  const outcomes: { encounter: Encounter | null; path: string; length: number }[] = [];
+  const paths = collectPaths(rehearsal.history.root);
+  for (const { path } of paths) {
+    const last = path[path.length - 1];
+    if (!last || !last.is_an_ending_leaf) continue;
+    outcomes.push({
+      encounter: last.encounter,
+      path: summarizePath(path),
+      length: path.length,
+    });
+  }
+  return outcomes;
+};
+
 const stopInterval = () => {
   if (uiState.intervalId !== null) {
     window.clearInterval(uiState.intervalId);
@@ -123,8 +177,8 @@ export function renderRehearsalTab(store: Store): HTMLElement {
   treeControls.append(collapseBtn, expandBtn);
 
   const panelEvents = el('div', { className: 'sw-rehearsal-panel' });
-  const panelCast = el('div', { className: 'sw-rehearsal-panel', text: 'Cast properties index coming soon.' });
-  const panelOutcomes = el('div', { className: 'sw-rehearsal-panel', text: 'Notable outcome index coming soon.' });
+  const panelCast = el('div', { className: 'sw-rehearsal-panel' });
+  const panelOutcomes = el('div', { className: 'sw-rehearsal-panel' });
 
   const table = el('table', { className: 'sw-table sw-rehearsal-table' });
   const thead = el('thead', {},
@@ -137,6 +191,34 @@ export function renderRehearsalTab(store: Store): HTMLElement {
   const tbody = el('tbody');
   table.append(thead, tbody);
   panelEvents.append(table);
+
+  const castTable = el('table', { className: 'sw-table sw-rehearsal-table' });
+  castTable.append(
+    el('thead', {},
+      el('tr', {},
+        el('th', { text: 'Character' }),
+        el('th', { text: 'Property' }),
+        el('th', { text: 'Min' }),
+        el('th', { text: 'Max' }),
+        el('th', { text: 'Avg' })
+      )
+    ),
+    el('tbody')
+  );
+  panelCast.append(castTable);
+
+  const outcomeTable = el('table', { className: 'sw-table sw-rehearsal-table' });
+  outcomeTable.append(
+    el('thead', {},
+      el('tr', {},
+        el('th', { text: 'Outcome' }),
+        el('th', { text: 'Path Length' }),
+        el('th', { text: 'Sample Path' })
+      )
+    ),
+    el('tbody')
+  );
+  panelOutcomes.append(outcomeTable);
 
   container.append(controls, tabRow, treeControls, panelEvents, panelCast, panelOutcomes);
 
@@ -174,6 +256,40 @@ export function renderRehearsalTab(store: Store): HTMLElement {
     });
   };
 
+  const renderCastIndex = () => {
+    const castBody = castTable.querySelector('tbody') as HTMLTableSectionElement;
+    clear(castBody);
+    if (!uiState.rehearsal) return;
+    const stats = computeCastIndex(uiState.rehearsal);
+    stats.forEach((row) => {
+      castBody.append(
+        el('tr', {},
+          el('td', { text: row.characterName }),
+          el('td', { text: row.propertyName }),
+          el('td', { text: row.min.toFixed(2) }),
+          el('td', { text: row.max.toFixed(2) }),
+          el('td', { text: row.avg.toFixed(2) })
+        )
+      );
+    });
+  };
+
+  const renderOutcomeIndex = () => {
+    const outcomeBody = outcomeTable.querySelector('tbody') as HTMLTableSectionElement;
+    clear(outcomeBody);
+    if (!uiState.rehearsal) return;
+    const outcomes = computeOutcomeIndex(uiState.rehearsal);
+    outcomes.forEach((row) => {
+      outcomeBody.append(
+        el('tr', {},
+          el('td', { text: formatEncounter(row.encounter) }),
+          el('td', { text: String(row.length) }),
+          el('td', { text: row.path })
+        )
+      );
+    });
+  };
+
   const ensureRehearsal = () => {
     uiState.rehearsal = new Rehearsal(storyworld);
     uiState.rehearsal.begin_playthrough();
@@ -182,6 +298,8 @@ export function renderRehearsalTab(store: Store): HTMLElement {
   const refreshReport = () => {
     ensureRehearsal();
     renderEventIndex();
+    renderCastIndex();
+    renderOutcomeIndex();
   };
 
   const tick = () => {
@@ -190,6 +308,8 @@ export function renderRehearsalTab(store: Store): HTMLElement {
     }
     const done = uiState.rehearsal!.rehearse_depth_first();
     renderEventIndex();
+    renderCastIndex();
+    renderOutcomeIndex();
     if (done) {
       stopInterval();
     }
@@ -218,7 +338,14 @@ export function renderRehearsalTab(store: Store): HTMLElement {
   refreshBtn.addEventListener('click', () => {
     stopInterval();
     playBtn.textContent = 'Play';
-    refreshReport();
+    ensureRehearsal();
+    let guard = 0;
+    while (guard < 5000 && uiState.rehearsal && !uiState.rehearsal.rehearse_depth_first()) {
+      guard += 1;
+    }
+    renderEventIndex();
+    renderCastIndex();
+    renderOutcomeIndex();
   });
 
   speedInput.addEventListener('change', () => {
