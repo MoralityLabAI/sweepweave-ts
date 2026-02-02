@@ -16,6 +16,7 @@ export * from './Option';
 export * from './Reaction';
 export * from './ScriptManager';
 export * from './Spool';
+export * from './StringConstant';
 export * from './Storyworld';
 export * from './SWOperator';
 export * from './SWPointer';

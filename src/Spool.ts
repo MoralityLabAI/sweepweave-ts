@@ -5,18 +5,37 @@
  */
 export class Spool {
     public id: string = '';
+    public name: string = '';
+    public active_at_start: boolean = false;
+    public encounter_ids: string[] = [];
+    public creation_index: number = 0;
+    public creation_time: number = 0;
+    public modified_time: number = 0;
 
-    constructor(id: string = '') {
+    constructor(id: string = '', name: string = '') {
         this.id = id;
+        this.name = name;
     }
 
     public set_as_copy_of(original: this): void {
         this.id = original.id;
+        this.name = original.name;
+        this.active_at_start = original.active_at_start;
+        this.encounter_ids = [...original.encounter_ids];
+        this.creation_index = original.creation_index;
+        this.creation_time = original.creation_time;
+        this.modified_time = original.modified_time;
     }
 
     public compile(): any {
         return {
             id: this.id,
+            spool_type: this.name,
+            active_at_start: this.active_at_start,
+            encounters: [...this.encounter_ids],
+            creation_index: this.creation_index,
+            creation_time: this.creation_time,
+            modified_time: this.modified_time,
         }
     }
 }

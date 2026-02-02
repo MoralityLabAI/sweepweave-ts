@@ -1,29 +1,42 @@
-import * as Sweepweave from './sweepweave';
+import './style.css';
+import { Storyworld } from './Storyworld';
+import { Encounter } from './Encounter';
+import { Option } from './Option';
+import { Reaction } from './Reaction';
+import { UUID } from './UUID';
+import { createStore } from './ui/store';
+import { createAppShell } from './ui/appShell';
 
-const storyworld = new Sweepweave.Storyworld();
-const defaultEncounter = new Sweepweave.Encounter('encounter_1', 'First Encounter');
-storyworld.encounters.push(defaultEncounter);
-storyworld.encounter_directory.set(defaultEncounter.id, defaultEncounter);
+const storyworld = new Storyworld();
+storyworld.storyworld_title = 'Untitled Storyworld';
 
-console.log('Sweepweave Storyworld instantiated:', storyworld);
-console.log('Sweepweave Encounter instantiated:', defaultEncounter);
+const encounter = new Encounter(`enc_${UUID.v4()}`, 'First Encounter');
+const option = new Option('New option', `opt_${UUID.v4()}`);
+const reaction = new Reaction('New reaction', `rxn_${UUID.v4()}`);
 
-const root = document.createElement('div');
-root.id = 'app';
-root.style.display = 'flex';
-root.style.gap = '16px';
+option.parent_encounter = encounter;
+reaction.parent_option = option;
+option.reactions.push(reaction);
+encounter.options.push(option);
+storyworld.encounters.push(encounter);
+storyworld.encounter_directory.set(encounter.id, encounter);
 
-const leftColumn = document.createElement('div');
-leftColumn.style.flex = '1';
-leftColumn.textContent = 'Encounters';
+const store = createStore({
+  storyworld,
+  activeTab: 'Encounters',
+  selections: {
+    encounterId: encounter.id,
+    optionId: option.id,
+    reactionId: reaction.id,
+    spoolId: null,
+    characterId: null,
+    propertyId: null,
+  },
+});
 
-const centerColumn = document.createElement('div');
-centerColumn.style.flex = '2';
-centerColumn.textContent = `Encounter editor: ${defaultEncounter.title}`;
-
-const rightColumn = document.createElement('div');
-rightColumn.style.flex = '1';
-rightColumn.textContent = 'Reactions';
-
-root.append(leftColumn, centerColumn, rightColumn);
-document.body.appendChild(root);
+const app = createAppShell(store);
+const root = document.getElementById('app');
+if (root) {
+  root.innerHTML = '';
+  root.appendChild(app);
+}

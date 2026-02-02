@@ -146,9 +146,9 @@ export class AssignmentOperator extends SWOperator {
             }
 
             const toData = data_to_load["to"];
-            if (toData && "script_element_type" in toData) {
+            if (toData) {
                 const script = new ScriptManager();
-                script.load_from_json_v0_0_21();
+                script.load_from_json_v0_0_21(toData, storyworld);
                 this.operand_1 = script;
             }
         }

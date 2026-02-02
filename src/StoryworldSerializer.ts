@@ -29,6 +29,16 @@ export class StoryworldSerializer {
         file_data["debug_mode"] = storyworld.storyworld_debug_mode_on;
         file_data["display_mode"] = storyworld.storyworld_display_mode;
         file_data["sweepweave_version"] = storyworld.sweepweave_version_number;
+        file_data["css_theme"] = storyworld.css_theme;
+        file_data["font_size"] = storyworld.font_size;
+        file_data["language"] = storyworld.language;
+        file_data["rating"] = storyworld.rating;
+        file_data["about_text"] = {
+            script_element_type: "Pointer",
+            pointer_type: "String Constant",
+            value: storyworld.about_text,
+        };
+        file_data["meta_description"] = storyworld.meta_description;
         file_data["creation_time"] = storyworld.creation_time;
         file_data["modified_time"] = storyworld.modified_time;
         file_data["IFID"] = storyworld.ifid;
