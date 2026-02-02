@@ -7,6 +7,7 @@ import { renderCharactersTab } from './tabs/characters';
 import { renderPersonalityTab } from './tabs/personality';
 import { renderPlayTab } from './tabs/play';
 import { renderAIConsoleTab } from './tabs/aiConsole';
+import { renderGraphViewTab } from './tabs/graphView';
 import { StoryworldIO } from '../StoryworldIO';
 import { StoryworldSerializer } from '../StoryworldSerializer';
 
@@ -71,6 +72,8 @@ function renderTabContent(store: Store): HTMLElement {
       return renderPlayTab(store);
     case 'AI Console':
       return renderAIConsoleTab(store);
+    case 'Graph View':
+      return renderGraphViewTab(store);
     default:
       return el('div', { className: 'sw-placeholder', text: `${state.activeTab} coming soon.` });
   }

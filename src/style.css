@@ -244,6 +244,116 @@ button:hover {
   padding: 20px;
   color: #555;
 }
+
+.sw-graph-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 520px;
+}
+
+.sw-graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: #d8d8d8;
+  border: 1px solid #9e9e9e;
+  padding: 8px 10px;
+}
+
+.sw-axis-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.sw-axis-tab {
+  padding: 4px 10px;
+  border: 1px solid #888;
+  background: #e6e6e6;
+}
+
+.sw-axis-tab.active {
+  background: #ffffff;
+  border-bottom: 2px solid #4a4a4a;
+}
+
+.sw-axis-select {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sw-axis-readout {
+  font-size: 12px;
+  color: #333;
+}
+
+.sw-graph-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #2c2c2c;
+}
+
+.sw-graph-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: radial-gradient(circle, #ffe7a6 20%, #ffb547 60%, #ffa12a 100%);
+  border: 1px solid #b56b1b;
+  box-shadow: 0 0 6px rgba(255, 180, 80, 0.7);
+}
+
+.sw-graph-canvas {
+  position: relative;
+  min-height: 520px;
+  border: 1px solid #8c8c8c;
+  background: #080b16;
+}
+
+.sw-graph-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sw-graph-tooltip {
+  position: absolute;
+  padding: 4px 8px;
+  background: rgba(10, 10, 10, 0.8);
+  color: #f3f3f3;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.sw-graph-label-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sw-graph-label {
+  position: absolute;
+  font-size: 11px;
+  color: #cfd7ff;
+  background: rgba(8, 10, 18, 0.6);
+  border: 1px solid rgba(120, 140, 220, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+}
+
+.sw-graph-label.ending {
+  color: #ffe1a6;
+  border-color: rgba(255, 189, 90, 0.6);
+  box-shadow: 0 0 6px rgba(255, 193, 90, 0.4);
+}
 @media (max-width: 980px) {
   .sw-encounters {
     grid-template-columns: 1fr;
