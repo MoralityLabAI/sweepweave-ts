@@ -6,6 +6,7 @@ import { renderSpoolsTab } from './tabs/spools';
 import { renderCharactersTab } from './tabs/characters';
 import { renderPersonalityTab } from './tabs/personality';
 import { renderPlayTab } from './tabs/play';
+import { renderAIConsoleTab } from './tabs/aiConsole';
 import { StoryworldIO } from '../StoryworldIO';
 import { StoryworldSerializer } from '../StoryworldSerializer';
 
@@ -20,6 +21,7 @@ const tabs: TabKey[] = [
   'Graph View',
   'Play',
   'Rehearsal',
+  'AI Console',
 ];
 
 function renderTabContent(store: Store): HTMLElement {
@@ -37,6 +39,8 @@ function renderTabContent(store: Store): HTMLElement {
       return renderPersonalityTab(store);
     case 'Play':
       return renderPlayTab(store);
+    case 'AI Console':
+      return renderAIConsoleTab(store);
     default:
       return el('div', { className: 'sw-placeholder', text: `${state.activeTab} coming soon.` });
   }
@@ -50,11 +54,16 @@ export function createAppShell(store: Store): HTMLElement {
   const fileButton = el('button', { className: 'sw-menu-button', text: 'File' });
   const viewButton = el('button', { className: 'sw-menu-button', text: 'View' });
   const helpButton = el('button', { className: 'sw-menu-button', text: 'Help' });
+  const aiButton = el('button', { className: 'sw-menu-button', text: 'AI' });
 
   const fileMenu = el('div', { className: 'sw-menu-dropdown' });
   const loadButton = el('button', { className: 'sw-menu-item', text: 'Load JSON' });
   const saveButton = el('button', { className: 'sw-menu-item', text: 'Save JSON' });
   fileMenu.append(loadButton, saveButton);
+
+  const aiMenu = el('div', { className: 'sw-menu-dropdown' });
+  const aiConsoleButton = el('button', { className: 'sw-menu-item', text: 'AI Console' });
+  aiMenu.append(aiConsoleButton);
 
   const fileInput = el('input', {
     attrs: { type: 'file', accept: '.json,.js' },
@@ -63,6 +72,17 @@ export function createAppShell(store: Store): HTMLElement {
 
   fileButton.addEventListener('click', () => {
     fileMenu.classList.toggle('open');
+    aiMenu.classList.remove('open');
+  });
+
+  aiButton.addEventListener('click', () => {
+    aiMenu.classList.toggle('open');
+    fileMenu.classList.remove('open');
+  });
+
+  aiConsoleButton.addEventListener('click', () => {
+    aiMenu.classList.remove('open');
+    store.setState({ activeTab: 'AI Console' });
   });
 
   loadButton.addEventListener('click', () => {
@@ -107,8 +127,8 @@ export function createAppShell(store: Store): HTMLElement {
     URL.revokeObjectURL(url);
   });
 
-  menuGroup.append(fileButton, viewButton, helpButton);
-  menuRow.append(menuGroup, fileMenu, fileInput);
+  menuGroup.append(fileButton, viewButton, helpButton, aiButton);
+  menuRow.append(menuGroup, fileMenu, aiMenu, fileInput);
 
   const tabRow = el('div', { className: 'sw-tab-row' });
   const content = el('div', { className: 'sw-content' });

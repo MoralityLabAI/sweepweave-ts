@@ -16,7 +16,8 @@ export type TabKey =
   | 'Documentation'
   | 'Graph View'
   | 'Play'
-  | 'Rehearsal';
+  | 'Rehearsal'
+  | 'AI Console';
 
 export interface SelectionState {
   encounterId: string | null;

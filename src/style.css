@@ -336,3 +336,19 @@ button:hover {
   flex-direction: column;
   gap: 6px;
 }
+
+.sw-ai-console {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.sw-ai-log {
+  background: #101010;
+  color: #e4e4e4;
+  padding: 10px;
+  min-height: 200px;
+  max-height: 400px;
+  overflow: auto;
+  border: 1px solid #3a3a3a;
+}
