@@ -1,58 +1,62 @@
 import { SWScriptElement } from "./SWScriptElement";
 
-/**
- * STUB
- * This is a placeholder for the ScriptManager class.
- * It will be replaced with a full implementation when ScriptManager.gd is ported.
- * It manages a tree of script elements.
- */
 export class ScriptManager {
-    public contents: any = null;
-    public output_type: any = null; // In reality, an enum
-    public script_changed: boolean = false;
+    public script_elements: SWScriptElement[] = [];
 
-    constructor(in_contents: any = null) {
-        console.warn("STUB: ScriptManager.constructor called");
-        this.contents = in_contents;
+    constructor() {
     }
 
-    public get_value(leaf: any = null): any {
-        console.warn("STUB: ScriptManager.get_value called");
-        if (this.contents instanceof SWScriptElement) {
-            return this.contents.get_value(leaf);
+    public get_value(): any {
+        let last_output: any = null;
+        for (const element of this.script_elements) {
+            last_output = element.get_value();
         }
-        return this.contents;
+        return last_output;
     }
 
-    public set_as_copy_of(original: ScriptManager): void {
-        console.warn("STUB: ScriptManager.set_as_copy_of called");
+    public add_script_element(element: SWScriptElement): void {
+        this.script_elements.push(element);
     }
 
-    public remap(storyworld: any): boolean {
-        console.warn("STUB: ScriptManager.remap called");
+    public remove_script_element(element: SWScriptElement): void {
+        const index = this.script_elements.indexOf(element);
+        if (index > -1) {
+            this.script_elements.splice(index, 1);
+        }
+    }
+
+    public set_as_copy_of(): void {
+    }
+
+    public remap(): boolean {
+        return true;
+    }
+
+    public to_string(): string {
+        let output = "";
+        for (const element of this.script_elements) {
+            output += element.data_to_string() + "\n";
+        }
+        return output;
+    }
+
+    public compile(): any {
+        const output: any[] = [];
+        for (const element of this.script_elements) {
+            output.push(element.compile());
+        }
+        return output;
+    }
+
+    public load_from_json_v0_0_21(): boolean {
         return true;
     }
 
     public clear(): void {
-        console.warn("STUB: ScriptManager.clear called");
-        this.contents = null;
-    }
-
-    public compile(parent_storyworld: any, include_editor_only_variables: boolean = false): any {
-        console.warn("STUB: ScriptManager.compile called");
-        return {};
+        this.script_elements = [];
     }
 
     public data_to_string(): string {
-        console.warn("STUB: ScriptManager.data_to_string called");
-        if (this.contents instanceof SWScriptElement) {
-            return this.contents.data_to_string();
-        }
-        return String(this.contents);
-    }
-
-    public load_from_json_v0_0_21(storyworld: any, data_to_load: any): boolean {
-        console.warn("STUB: ScriptManager.load_from_json_v0_0_21 called");
-        return true;
+        return this.to_string();
     }
 }

@@ -9,4 +9,14 @@ export class Spool {
     constructor(id: string = '') {
         this.id = id;
     }
+
+    public set_as_copy_of(original: Spool): void {
+        this.id = original.id;
+    }
+
+    public compile(): any {
+        return {
+            id: this.id,
+        }
+    }
 }

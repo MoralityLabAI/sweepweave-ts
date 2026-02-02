@@ -29,7 +29,7 @@ export class BNumberConstant extends SWPointer {
         this.set_value(in_value);
     }
 
-    public override get_value(leaf: any = null): number {
+    public override get_value(): number {
         if (this.value === null) {
             // Returning 0 to avoid breaking consumers expecting a number.
             // Original code could result in null being passed to clamp, which is undesirable.
@@ -47,7 +47,7 @@ export class BNumberConstant extends SWPointer {
         }
     }
 
-    public override compile(parent_storyworld: any, include_editor_only_variables: boolean = false): Record<string, any> {
+    public override compile(): Record<string, any> {
         const output: Record<string, any> = {};
         output["script_element_type"] = "Pointer";
         output["pointer_type"] = this.pointer_type;

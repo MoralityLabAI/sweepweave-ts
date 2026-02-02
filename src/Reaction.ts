@@ -1,10 +1,11 @@
-/**
- * STUB
- * This is a placeholder for the Reaction class.
- * It will be replaced with a full implementation when Reaction.gd is ported.
- */
+import { Encounter } from "./Encounter";
+import { SWScriptElement } from "./SWScriptElement";
+
 export class Reaction {
     public text: string = '';
+    public occurrences: number = 0;
+    public consequence: Encounter | null = null;
+    public after_effects: SWScriptElement[] = [];
 
     constructor(text: string = '') {
         this.text = text;
@@ -13,5 +14,10 @@ export class Reaction {
     public get_index(): number {
         console.warn("STUB: Reaction.get_index called");
         return -1; // Placeholder
+    }
+
+    public calculate_desirability(): number {
+        console.warn("STUB: Reaction.calculate_desirability called");
+        return 0; // Placeholder
     }
 }

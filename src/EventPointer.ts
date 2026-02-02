@@ -4,7 +4,6 @@ import { Spool } from './Spool';
 import { Encounter } from './Encounter';
 import { Option } from './Option';
 import { Reaction } from './Reaction';
-import { Storyworld } from './Storyworld'; // For remap and compile
 
 /**
  * This pointer tests whether or not an event has occurred in the story history.
@@ -39,7 +38,7 @@ export class EventPointer extends SWPointer {
      * This is a stub implementation as the full "historybook" (leaf) is not yet ported.
      * @param leaf The current node in the historybook (stubbed).
      */
-    public has_occurred_on_branch(leaf: any): boolean | null {
+    public has_occurred_on_branch(): boolean | null {
         // --- STUB IMPLEMENTATION ---
         // The original GDScript traversed a Node tree (historybook) here.
         // For now, we return false, but the structure for checking specific encounters/options/reactions
@@ -65,8 +64,8 @@ export class EventPointer extends SWPointer {
         return false;
     }
 
-    public override get_value(leaf: any = null): boolean | null {
-        const has_occurred = this.has_occurred_on_branch(leaf);
+    public override get_value(): boolean | null {
+        const has_occurred = this.has_occurred_on_branch();
         if (this.negated === null || has_occurred === null) {
             return null;
         } else if (this.negated !== has_occurred) {
@@ -109,7 +108,7 @@ export class EventPointer extends SWPointer {
         return output;
     }
 
-    public override compile(parent_storyworld: Storyworld, include_editor_only_variables: boolean = false): Record<string, any> {
+    public override compile(): Record<string, any> {
         const output: Record<string, any> = {};
         output["script_element_type"] = "Pointer";
         output["pointer_type"] = this.pointer_type;
@@ -123,57 +122,18 @@ export class EventPointer extends SWPointer {
         return output;
     }
 
-    public set_as_copy_of(original: EventPointer): void {
-        this.negated = original.negated;
-        this.spool = original.spool;
-        this.encounter = original.encounter;
-        this.option = original.option;
-        this.reaction = original.reaction;
+    public override set_as_copy_of(original: any): void {
+        if (original instanceof EventPointer) {
+            this.negated = original.negated;
+            this.spool = original.spool;
+            this.encounter = original.encounter;
+            this.option = original.option;
+            this.reaction = original.reaction;
+        }
     }
 
-    public override remap(storyworld: Storyworld): boolean {
-        let success = true;
-
-        if (this.spool) {
-            if (storyworld.spool_directory.has(this.spool.id)) {
-                this.spool = storyworld.spool_directory.get(this.spool.id)!;
-            } else {
-                this.clear();
-                return false; // Spool not found
-            }
-        }
-        
-        if (this.encounter) {
-            if (storyworld.encounter_directory.has(this.encounter.id)) {
-                this.encounter = storyworld.encounter_directory.get(this.encounter.id)!;
-                if (this.option) {
-                    const optionIndex = this.option.get_index(); // Using index from original option
-                    if (optionIndex !== -1 && optionIndex < this.encounter.options.length) {
-                        this.option = this.encounter.options[optionIndex];
-                        if (this.reaction) {
-                            const reactionIndex = this.reaction.get_index(); // Using index from original reaction
-                            if (reactionIndex !== -1 && reactionIndex < this.option.reactions.length) {
-                                this.reaction = this.option.reactions[reactionIndex];
-                            } else {
-                                this.reaction = null; // Reaction not found or invalid index
-                            }
-                        }
-                    } else {
-                        this.option = null; // Option not found or invalid index
-                        this.reaction = null;
-                    }
-                } else {
-                    this.reaction = null; // No option, so no reaction
-                }
-            } else {
-                this.clear();
-                return false; // Encounter not found
-            }
-        } else {
-            this.option = null;
-            this.reaction = null;
-        }
-        
-        return success;
+    public override remap(): boolean {
+        // This method should be implemented when the Storyworld class is fully ported.
+        return true;
     }
 }

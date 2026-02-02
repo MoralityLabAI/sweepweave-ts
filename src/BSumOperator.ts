@@ -48,10 +48,10 @@ export class BSumOperator extends SWOperator {
      * @param leaf The historybook leaf.
      * @returns The bounded sum.
      */
-    public override get_value(leaf: any = null): number {
+    public override get_value(): number {
         let result = 0;
         for (const operand of this.operands) {
-            const operand_value = this.evaluate_operand(operand, leaf);
+            const operand_value = this.evaluate_operand(operand);
             if (operand_value !== null && typeof operand_value === 'number') {
                 result += this.convert_bounded_to_normal(operand_value);
             }

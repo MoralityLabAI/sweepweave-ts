@@ -20,15 +20,15 @@ export class BNumberPointer extends SWPointer {
         this.keyring = [...in_keyring]; // .duplicate() is a shallow copy
     }
 
-    public override get_value(leaf: any = null): number | undefined {
+    public override get_value(): number | undefined {
         if (this.character instanceof Actor) {
-            return this.coefficient * this.character.get_bnumber_property(this.keyring);
+            return this.coefficient * this.character.get_bnumber_property();
         }
     }
 
-    public set_value(value: number): void {
+    public set_value(): void {
         if (this.character instanceof Actor) {
-            this.character.set_bnumber_property(this.keyring, value);
+            this.character.set_bnumber_property();
         }
     }
 
@@ -66,7 +66,7 @@ export class BNumberPointer extends SWPointer {
         }
     }
 
-    public override compile(parent_storyworld: Storyworld, include_editor_only_variables: boolean = false): Record<string, any> {
+    public override compile(): Record<string, any> {
         const output: Record<string, any> = {};
         output["script_element_type"] = "Pointer";
         output["pointer_type"] = this.pointer_type;
@@ -79,30 +79,18 @@ export class BNumberPointer extends SWPointer {
             return output;
         }
         
-        if (include_editor_only_variables) {
-            output["character"] = this.character.id;
-            output["keyring"] = [...this.keyring];
-        } else {
-            output["character"] = this.character.get_index();
-            output["keyring"] = [];
-            if (this.keyring.length > 0 && this.character.authored_property_directory.has(this.keyring[0])) {
-                for (let key_index = 0; key_index < this.keyring.length; key_index++) {
-                    const key = this.keyring[key_index];
-                    if (key_index === 0) {
-                        output["keyring"].push(key);
-                    } else if (parent_storyworld.character_directory.has(key)) {
-                        output["keyring"].push(parent_storyworld.character_directory.get(key)!.get_index());
-                    }
-                }
-            }
-        }
+        output["character"] = this.character.id;
+        output["keyring"] = [...this.keyring];
+
         return output;
     }
 
-    public set_as_copy_of(original: BNumberPointer): void {
-        this.character = original.character;
-        this.coefficient = original.coefficient;
-        this.keyring = [...original.keyring];
+    public override set_as_copy_of(original: any): void {
+        if (original instanceof BNumberPointer) {
+            this.character = original.character;
+            this.coefficient = original.coefficient;
+            this.keyring = [...original.keyring];
+        }
     }
 
     public replace_character_with_character(search_term: Actor, replacement: Actor): void {
@@ -114,9 +102,9 @@ export class BNumberPointer extends SWPointer {
         }
     }
 
-    public override remap(to_storyworld: Storyworld): boolean {
-        if (this.character && to_storyworld.character_directory.has(this.character.id)) {
-            this.character = to_storyworld.character_directory.get(this.character.id)!;
+    public override remap(): boolean {
+        if (this.character && this.character.storyworld && this.character.storyworld.character_directory.has(this.character.id)) {
+            this.character = this.character.storyworld.character_directory.get(this.character.id)!;
             return true;
         } else {
             this.character = null;
@@ -142,7 +130,7 @@ export class BNumberPointer extends SWPointer {
             }
         }
         text += "] (";
-        text += this.character.get_bnumber_property(this.keyring);
+        text += this.character.get_bnumber_property();
         text += ")";
         return text;
     }

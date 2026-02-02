@@ -28,18 +28,18 @@ export class SWOperator extends SWScriptElement {
         }
     }
 
-    public override remap(storyworld: any): boolean {
+    public override remap(): boolean {
         let result = true;
         for (const operand of this.operands) {
             if (operand instanceof SWScriptElement) {
-                const check = operand.remap(storyworld);
+                const check = operand.remap();
                 result = result && check;
             }
         }
         return result;
     }
 
-    public evaluate_operand(operand: any, leaf: any): any {
+    public evaluate_operand(operand: any): any {
         let result = null;
         const operand_type = typeof operand;
 
@@ -48,7 +48,7 @@ export class SWOperator extends SWScriptElement {
         } else if (operand_type === 'boolean' || operand_type === 'number') {
             result = operand;
         } else if (operand instanceof SWScriptElement) {
-            result = operand.get_value(leaf);
+            result = operand.get_value();
         }
 
         if (result === null) {
@@ -57,13 +57,13 @@ export class SWOperator extends SWScriptElement {
         return result;
     }
 
-    public evaluate_operand_at_index(operand_index: number, leaf: any): any {
+    public evaluate_operand_at_index(operand_index: number): any {
         if (operand_index === null || operand_index >= this.operands.length) {
             // Operator does not contain an operand at the index specified.
             return null;
         }
         const operand = this.operands[operand_index];
-        return this.evaluate_operand(operand, leaf);
+        return this.evaluate_operand(operand);
     }
 
     public override clear(): void {
@@ -90,13 +90,11 @@ export class SWOperator extends SWScriptElement {
         }
     }
 
-    public override compile(parent_storyworld: any, include_editor_only_variables: boolean = false): Record<string, any> {
+    public override compile(): Record<string, any> {
         const output: Record<string, any> = {};
         output["script_element_type"] = "Operator";
         output["operator_type"] = this.operator_type;
-        if (!include_editor_only_variables) {
-            output["input_type"] = this.stringify_input_type();
-        }
+        output["input_type"] = this.stringify_input_type();
         output["operands"] = [];
         for (const operand of this.operands) {
             const operand_type = typeof operand;
@@ -105,7 +103,7 @@ export class SWOperator extends SWScriptElement {
             } else if (operand_type === 'boolean' || operand_type === 'number') {
                 output["operands"].push(operand);
             } else if (operand instanceof SWScriptElement) {
-                output["operands"].push(operand.compile(parent_storyworld, include_editor_only_variables));
+                output["operands"].push(operand.compile());
             }
         }
         return output;

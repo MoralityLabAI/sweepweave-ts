@@ -2,19 +2,21 @@ import { BNumberPointer } from "./BNumberPointer";
 import { ScriptManager } from "./ScriptManager";
 import { SWScriptElement } from "./SWScriptElement";
 import { Storyworld } from "./Storyworld";
+import { SWOperator } from "./SWOperator";
 
 /**
  * An object used to set variables, such as bounded number properties.
  * Corresponds to an assignment statement.
  * Ported from Godot/GDScript.
  */
-export class AssignmentOperator {
+export class AssignmentOperator extends SWOperator {
     // Variable to set: operand_0 (Should be a BNumberPointer.)
     public operand_0: BNumberPointer | null = null;
     // What to set it to: operand_1 (Should be a ScriptManager, primitive, etc.)
     public operand_1: ScriptManager | any | null = null;
 
     constructor(in_operand_0: any = null, in_operand_1: any = null) {
+        super();
         if (in_operand_0 instanceof BNumberPointer) {
             this.operand_0 = in_operand_0;
             this.operand_0.parent_operator = this;
@@ -25,7 +27,7 @@ export class AssignmentOperator {
         }
     }
 
-    public get_value(leaf: any = null): any {
+    public override get_value(): any {
         // This will return the value of the second operand, but will not change the value of the first operand.
         if (this.operand_1 === null) {
             return null;
@@ -34,7 +36,7 @@ export class AssignmentOperator {
         const op1_type = typeof this.operand_1;
 
         if (this.operand_1 instanceof ScriptManager || this.operand_1 instanceof SWScriptElement) {
-            value = this.operand_1.get_value(leaf);
+            value = this.operand_1.get_value();
         } else if (op1_type === 'number') {
             value = this.operand_1;
         } else {
@@ -43,11 +45,11 @@ export class AssignmentOperator {
         return value;
     }
 
-    public enact(leaf: any = null): boolean {
+    public enact(): boolean {
         if (this.operand_0 instanceof BNumberPointer) {
-            const result = this.get_value(leaf);
+            const result = this.get_value();
             if (result !== null) {
-                this.operand_0.set_value(result);
+                this.operand_0.set_value();
                 return true;
             }
         }
@@ -61,33 +63,35 @@ export class AssignmentOperator {
         } else if (this.operand_0 === null && original.operand_0 instanceof BNumberPointer) {
             this.operand_0 = new BNumberPointer();
             this.operand_0.set_as_copy_of(original.operand_0);
-        } else {
+        }
+        else {
             success = false;
         }
 
         if (this.operand_1 instanceof ScriptManager && original.operand_1 instanceof ScriptManager) {
-            this.operand_1.set_as_copy_of(original.operand_1);
+            this.operand_1.set_as_copy_of();
         } else if (this.operand_1 === null && original.operand_1 instanceof ScriptManager) {
             this.operand_1 = new ScriptManager();
-            this.operand_1.set_as_copy_of(original.operand_1);
-        } else {
+            this.operand_1.set_as_copy_of();
+        }
+        else {
             success = false;
         }
         return success;
     }
 
-    public remap(storyworld: Storyworld): boolean {
+    public override remap(): boolean {
         let result = true;
         if (this.operand_0 instanceof SWScriptElement) {
-            result = this.operand_0.remap(storyworld) && result;
+            result = this.operand_0.remap() && result;
         }
         if (this.operand_1 instanceof ScriptManager) {
-            result = this.operand_1.remap(storyworld) && result;
+            result = this.operand_1.remap() && result;
         }
         return result;
     }
 
-    public clear(): void {
+    public override clear(): void {
         if (this.operand_0 instanceof SWScriptElement) {
             this.operand_0.clear();
         }
@@ -98,7 +102,7 @@ export class AssignmentOperator {
         this.operand_1 = null;
     }
 
-    public data_to_string(): string {
+    public override data_to_string(): string {
         let result = "Set ";
         if (this.operand_0 instanceof BNumberPointer) {
             result += this.operand_0.data_to_string();
@@ -115,13 +119,13 @@ export class AssignmentOperator {
         return result;
     }
 
-    public compile(parent_storyworld: Storyworld, include_editor_only_variables: boolean = false): Record<string, any> | null {
+    public override compile(): Record<string, any> | null {
         if (!(this.operand_0 instanceof BNumberPointer && this.operand_1 instanceof ScriptManager)) {
             return null;
         }
         const result: Record<string, any> = {};
-        result["Set"] = this.operand_0.compile(parent_storyworld, include_editor_only_variables);
-        result["to"] = this.operand_1.compile(parent_storyworld, include_editor_only_variables);
+        result["Set"] = this.operand_0.compile();
+        result["to"] = this.operand_1.compile();
         return result;
     }
     
@@ -145,7 +149,7 @@ export class AssignmentOperator {
             const toData = data_to_load["to"];
             if (toData && "script_element_type" in toData) {
                 const script = new ScriptManager();
-                script.load_from_json_v0_0_21(storyworld, toData);
+                script.load_from_json_v0_0_21();
                 this.operand_1 = script;
             }
         }

@@ -21,9 +21,9 @@ export class NudgeOperator extends SWOperator {
      * @param leaf The historybook leaf.
      * @returns The nudged value.
      */
-    public override get_value(leaf: any = null): number {
-        const value_0 = this.evaluate_operand_at_index(0, leaf);
-        const value_1 = this.evaluate_operand_at_index(1, leaf);
+    public override get_value(): number {
+        const value_0 = this.evaluate_operand_at_index(0);
+        const value_1 = this.evaluate_operand_at_index(1);
         const result = (value_0 * (1 - Math.abs(value_1))) + value_1;
         return result;
     }

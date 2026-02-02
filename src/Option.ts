@@ -1,13 +1,12 @@
-import { Reaction } from './Reaction'; // Forward declaration, will create Reaction.ts next
+import { Reaction } from './Reaction';
+import { ScriptManager } from './ScriptManager';
 
-/**
- * STUB
- * This is a placeholder for the Option class.
- * It will be replaced with a full implementation when Option.gd is ported.
- */
 export class Option {
     public text: string = '';
-    public reactions: Reaction[] = []; // Array of Reaction stubs
+    public reactions: Reaction[] = [];
+    public occurrences: number = 0;
+    public visibility_script: ScriptManager = new ScriptManager();
+    public performability_script: ScriptManager = new ScriptManager();
 
     constructor(text: string = '') {
         this.text = text;

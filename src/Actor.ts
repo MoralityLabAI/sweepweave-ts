@@ -1,3 +1,6 @@
+import { BNumberBlueprint } from "./BNumberBlueprint";
+import { Storyworld } from "./Storyworld";
+
 /**
  * STUB
  * This is a placeholder for the Actor class.
@@ -5,21 +8,40 @@
  */
 export class Actor {
     public id: string = '';
-    public char_name: string = 'Unnamed Actor';
-    public storyworld: any = null; // To be Storyworld
-    public authored_property_directory: Map<string, any> = new Map();
+    public char_name: string = '';
+    public bnumber_properties: Map<string, number> = new Map();
+    public authored_property_directory: Map<string, BNumberBlueprint> = new Map();
+    public storyworld: Storyworld | null = null;
 
-    public get_bnumber_property(keyring: any[]): number {
-        console.warn("STUB: Actor.get_bnumber_property called");
-        return 0;
+    constructor(id: string = '', char_name: string = '') {
+        this.id = id;
+        this.char_name = char_name;
     }
 
-    public set_bnumber_property(keyring: any[], value: any): void {
+    public get_bnumber_property(): number {
+        console.warn("STUB: Actor.get_bnumber_property called");
+        return 0; // Placeholder
+    }
+
+    public set_bnumber_property(): void {
         console.warn("STUB: Actor.set_bnumber_property called");
     }
 
+    public compile(): any {
+        console.warn("STUB: Actor.compile called");
+        return {}; // Placeholder
+    }
+
+    public set_as_copy_of(original: Actor): void {
+        this.id = original.id;
+        this.char_name = original.char_name;
+        this.bnumber_properties = new Map(original.bnumber_properties);
+    }
+
     public get_index(): number {
-        console.warn("STUB: Actor.get_index called");
+        if (this.storyworld) {
+            return this.storyworld.characters.indexOf(this);
+        }
         return -1;
     }
 }

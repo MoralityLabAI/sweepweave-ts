@@ -28,9 +28,9 @@ export class Desideratum extends SWOperator {
         this.add_operand(in_operand_1);
     }
 
-    private get_distance_between_operands(leaf: any = null): number {
-        const value_0 = this.evaluate_operand_at_index(0, leaf);
-        const value_1 = this.evaluate_operand_at_index(1, leaf);
+    private get_distance_between_operands(): number {
+        const value_0 = this.evaluate_operand_at_index(0);
+        const value_1 = this.evaluate_operand_at_index(1);
         
         if (typeof value_0 === 'number' && typeof value_1 === 'number') {
             return Math.abs(value_0 - value_1);
@@ -45,8 +45,8 @@ export class Desideratum extends SWOperator {
      * @param leaf The historybook leaf.
      * @returns The desideratum value, clamped between -0.99 and 0.99.
      */
-    public override get_value(leaf: any = null): number {
-        const result = 0.99 - this.get_distance_between_operands(leaf);
+    public override get_value(): number {
+        const result = 0.99 - this.get_distance_between_operands();
         return clamp(result, -0.99, 0.99);
     }
 

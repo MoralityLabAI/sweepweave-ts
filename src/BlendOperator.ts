@@ -22,10 +22,10 @@ export class BlendOperator extends SWOperator {
      * @param leaf The historybook leaf.
      * @returns The result of the interpolation.
      */
-    public override get_value(leaf: any = null): number {
-        const value_0 = this.evaluate_operand_at_index(0, leaf);
-        const value_1 = this.evaluate_operand_at_index(1, leaf);
-        const value_weight = this.evaluate_operand_at_index(2, leaf);
+    public override get_value(): number {
+        const value_0 = this.evaluate_operand_at_index(0);
+        const value_1 = this.evaluate_operand_at_index(1);
+        const value_weight = this.evaluate_operand_at_index(2);
 
         // The weight is normalized from a [-1, 1] range to a [0, 1] range.
         const normalized_weight = (value_weight + 1) / 2;

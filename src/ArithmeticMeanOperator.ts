@@ -23,7 +23,7 @@ export class ArithmeticMeanOperator extends SWOperator {
      * @param leaf The historybook leaf.
      * @returns The mean, or 0 if no valid operands, or null if no operands exist.
      */
-    public override get_value(leaf: any = null): number | null {
+    public override get_value(): number | null {
         if (this.operands.length === 0) {
             console.warn("Warning: Arithmetic mean operator has no operands.");
             return null;
@@ -33,7 +33,7 @@ export class ArithmeticMeanOperator extends SWOperator {
         let count = 0;
 
         for (const operand of this.operands) {
-            const operand_value = this.evaluate_operand(operand, leaf);
+            const operand_value = this.evaluate_operand(operand);
             if (operand_value !== null && typeof operand_value === 'number') {
                 sum += operand_value;
                 count += 1;

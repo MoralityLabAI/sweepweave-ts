@@ -60,7 +60,7 @@ export class BooleanOperator extends SWOperator {
         }
     }
 
-    private test_operand(operand: any, leaf: any = null): boolean | null {
+    private test_operand(operand: any): boolean | null {
         if (operand === null || this.operator_subtype === null) {
             console.error("Cannot evaluate boolean operator.");
             return null;
@@ -68,7 +68,7 @@ export class BooleanOperator extends SWOperator {
 
         let result: any = null;
         if (operand instanceof SWScriptElement) {
-            result = operand.get_value(leaf);
+            result = operand.get_value();
         } else {
             result = operand;
         }
@@ -84,18 +84,18 @@ export class BooleanOperator extends SWOperator {
         return null;
     }
 
-    public override get_value(leaf: any = null): boolean | null {
+    public override get_value(): boolean | null {
         switch (this.operator_subtype) {
             case operator_subtypes.NOT: {
                 if (this.operands.length >= 1) {
-                    const value_0 = this.test_operand(this.operands[0], leaf);
+                    const value_0 = this.test_operand(this.operands[0]);
                     return value_0 === null ? null : !value_0;
                 }
                 return null;
             }
             case operator_subtypes.AND: {
                 for (const operand of this.operands) {
-                    const value = this.test_operand(operand, leaf);
+                    const value = this.test_operand(operand);
                     if (value === null) continue;
                     if (!value) return false;
                 }
@@ -103,7 +103,7 @@ export class BooleanOperator extends SWOperator {
             }
             case operator_subtypes.OR: {
                 for (const operand of this.operands) {
-                    const value = this.test_operand(operand, leaf);
+                    const value = this.test_operand(operand);
                     if (value === null) continue;
                     if (value) return true;
                 }
@@ -111,8 +111,8 @@ export class BooleanOperator extends SWOperator {
             }
             case operator_subtypes.XOR: {
                 if (this.operands.length >= 2) {
-                    const value_0 = this.test_operand(this.operands[0], leaf);
-                    const value_1 = this.test_operand(this.operands[1], leaf);
+                    const value_0 = this.test_operand(this.operands[0]);
+                    const value_1 = this.test_operand(this.operands[1]);
                     if (value_0 === null || value_1 === null) return null;
                     return value_0 !== value_1;
                 }
@@ -124,7 +124,7 @@ export class BooleanOperator extends SWOperator {
                 
                 let first_value: boolean | null = null;
                 for(const operand of this.operands) {
-                    const current_value = this.test_operand(operand, leaf);
+                    const current_value = this.test_operand(operand);
                     if (current_value === null) continue;
 
                     if (first_value === null) {
@@ -143,8 +143,8 @@ export class BooleanOperator extends SWOperator {
         }
     }
 
-    public override compile(parent_storyworld: any, include_editor_only_variables: boolean = false): Record<string, any> {
-        const output = super.compile(parent_storyworld, include_editor_only_variables);
+    public override compile(): Record<string, any> {
+        const output = super.compile();
         output["operator_subtype"] = this.operator_subtype_to_string();
         
         // Override operand compilation to coerce numbers to booleans
@@ -157,7 +157,7 @@ export class BooleanOperator extends SWOperator {
             } else if (typeof operand === 'number') {
                 output["operands"].push(Boolean(operand));
             } else if (operand instanceof SWScriptElement) {
-                output["operands"].push(operand.compile(parent_storyworld, include_editor_only_variables));
+                output["operands"].push(operand.compile());
             }
         }
         return output;

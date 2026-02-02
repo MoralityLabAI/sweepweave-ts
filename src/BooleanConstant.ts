@@ -2,8 +2,7 @@ import { SWPointer } from './SWPointer';
 import { sw_script_data_types } from './SWScriptElement';
 
 /**
- * A pointer that holds a constant boolean value (true or false).
- * This is useful for script construction and for getting the parent of a constant.
+ * A pointer that holds a constant boolean value.  
  * Ported from Godot/GDScript.
  */
 export class BooleanConstant extends SWPointer {
@@ -17,7 +16,7 @@ export class BooleanConstant extends SWPointer {
         this.set_value(in_value);
     }
 
-    public override get_value(leaf: any = null): boolean | null {
+    public override get_value(): boolean | null {
         return this.value;
     }
 
@@ -30,14 +29,11 @@ export class BooleanConstant extends SWPointer {
         }
     }
 
-    /**
-     * Compiles the constant down to its raw boolean value.
-     */
-    public override compile(parent_storyworld: any, include_editor_only_variables: boolean = false): boolean | null {
-        return this.value;
-    }
-
-    public override data_to_string(): string {
-        return String(this.value);
+    public override compile(): Record<string, any> {
+        const output: Record<string, any> = {};
+        output["script_element_type"] = "Pointer";
+        output["pointer_type"] = this.pointer_type;
+        output["value"] = this.get_value();
+        return output;
     }
 }
