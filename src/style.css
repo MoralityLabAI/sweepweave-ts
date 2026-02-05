@@ -423,12 +423,16 @@ button:hover {
 }
 
 .sw-modal {
-  width: min(900px, 92vw);
+    width: min(900px, 92vw);
   background: #ececec;
   border: 1px solid #8a8a8a;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
+}
+
+.sw-modal.sw-modal-narrow {
+  width: min(520px, 92vw);
 }
 
 .sw-modal-header {
@@ -439,18 +443,70 @@ button:hover {
 }
 
 .sw-modal-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 12px;
-  min-height: 320px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 12px;
+    min-height: 320px;
+}
+
+.sw-modal-body.sw-modal-body-single {
+  grid-template-columns: 1fr;
+  min-height: unset;
 }
 
 .sw-modal-pane {
-  background: #f5f5f5;
-  border: 1px solid #b0b0b0;
-  padding: 10px;
-  overflow: auto;
+    background: #f5f5f5;
+    border: 1px solid #b0b0b0;
+    padding: 10px;
+    overflow: auto;
+}
+
+.sw-validation {
+  color: #b00020;
+  font-size: 12px;
+}
+
+.sw-help-text {
+  font-size: 12px;
+  color: #333333;
+}
+
+.sw-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sw-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sw-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sw-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sw-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sw-compact-select {
+  width: 260px;
+  padding: 4px 6px;
+  border: 1px solid #8c8c8c;
+  background: #ffffff;
 }
 
 .sw-modal-footer {

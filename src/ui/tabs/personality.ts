@@ -1,7 +1,6 @@
 import { el } from '../dom';
 import { Store, touchStoryworld, getSelectedProperty } from '../store';
-import { BNumberBlueprint } from '../../BNumberBlueprint';
-import { UUID } from '../../UUID';
+import { openNewPropertyModal } from '../modals/NewPropertyModal';
 
 export function renderPersonalityTab(store: Store): HTMLElement {
   const state = store.getState();
@@ -27,13 +26,13 @@ export function renderPersonalityTab(store: Store): HTMLElement {
   list.addEventListener('change', () => store.selectProperty(list.value || null));
 
   addBtn.addEventListener('click', () => {
-    const prop = new BNumberBlueprint(storyworld, 'New Property', `prop_${UUID.v4()}`, 0, 0);
-    storyworld.authored_properties.push(prop);
-    for (const actor of storyworld.characters) {
-      actor.authored_property_directory.set(prop.id, prop);
-    }
-    touchStoryworld(storyworld);
-    store.selectProperty(prop.id);
+    openNewPropertyModal({
+      storyworld,
+      onCreate: (prop) => {
+        touchStoryworld(storyworld);
+        store.selectProperty(prop.id);
+      },
+    });
   });
   removeBtn.addEventListener('click', () => {
     const prop = getSelectedProperty(store.getState());
