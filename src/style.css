@@ -436,10 +436,32 @@ button:hover {
 }
 
 .sw-modal-header {
-  padding: 8px 12px;
-  background: #c8c8c8;
-  border-bottom: 1px solid #9a9a9a;
+    padding: 8px 12px;
+    background: #c8c8c8;
+    border-bottom: 1px solid #9a9a9a;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+.sw-modal-title {
   font-weight: 600;
+}
+
+.sw-modal-close {
+  border: 1px solid #8a8a8a;
+  background: #e5e5e5;
+  width: 26px;
+  height: 24px;
+  line-height: 20px;
+  text-align: center;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.sw-modal-close:hover {
+  background: #f3f3f3;
 }
 
 .sw-modal-body {
@@ -500,6 +522,13 @@ button:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.sw-affected-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .sw-compact-select {

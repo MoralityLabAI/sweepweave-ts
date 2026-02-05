@@ -2,7 +2,6 @@ import { el } from '../dom';
 import { Storyworld } from '../../Storyworld';
 import { BNumberBlueprint, possible_attribution_targets } from '../../BNumberBlueprint';
 import { UUID } from '../../UUID';
-import { openSelectCastMembersModal } from './SelectCastMembersModal';
 
 interface NewPropertyModalOptions {
   storyworld: Storyworld;
@@ -73,7 +72,10 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
   const { storyworld } = options;
   const overlay = el('div', { className: 'sw-modal-overlay' });
   const modal = el('div', { className: 'sw-modal sw-modal-narrow' });
-  const header = el('div', { className: 'sw-modal-header', text: 'New Property' });
+  const header = el('div', { className: 'sw-modal-header' });
+  const headerTitle = el('div', { className: 'sw-modal-title', text: 'New Property' });
+  const headerClose = el('button', { className: 'sw-modal-close', text: '×' });
+  header.append(headerTitle, headerClose);
   const body = el('div', { className: 'sw-modal-body sw-modal-body-single' });
   const pane = el('div', { className: 'sw-modal-pane sw-form' });
   const footer = el('div', { className: 'sw-modal-footer' });
@@ -82,6 +84,8 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
 
   let attributionMode: AttributionMode = 'all';
   let p2Enabled = false;
+  let selectedAffectedId: string | null = null;
+  const affectedIds = new Set<string>();
 
   const nameInput = el('input', {
     attrs: { type: 'text', value: '' },
@@ -106,6 +110,16 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
     el('option', { text: 'Apply to all cast members.', attrs: { value: 'all' } }),
     el('option', { text: 'Apply to specific cast members.', attrs: { value: 'some' } })
   );
+
+  const affectedSection = el('div', { className: 'sw-affected-section' });
+  const affectedLabel = el('div', { className: 'sw-section-header', text: 'Who to apply property to:' });
+  const affectedButtons = el('div', { className: 'sw-button-row' });
+  const addAffectedBtn = el('button', { text: 'Add a character to affected characters.' });
+  const delAffectedBtn = el('button', { text: 'Delete character from affected characters.' }) as HTMLButtonElement;
+  delAffectedBtn.disabled = true;
+  affectedButtons.append(addAffectedBtn, delAffectedBtn);
+  const affectedList = el('select', { className: 'sw-listbox', attrs: { size: '6' } }) as HTMLSelectElement;
+  affectedSection.append(affectedLabel, affectedButtons, affectedList);
 
   const syncDepth = () => {
     p2Enabled = p2Checkbox.checked;
@@ -133,6 +147,7 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
         depthInput.value = '0';
       }
     }
+    affectedSection.style.display = attributionMode === 'some' ? 'flex' : 'none';
   };
 
   p2Checkbox.addEventListener('change', syncDepth);
@@ -185,18 +200,100 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
       close();
       return;
     }
-    openSelectCastMembersModal({
-      title: 'Select Cast Members',
-      castMembers: storyworld.characters.map((c) => ({ id: c.id, name: c.char_name || c.id })),
-      onConfirm: (selectedIds) => {
-        createProperty(selectedIds);
-        close();
-      },
-    });
+    createProperty([...affectedIds]);
+    close();
   };
 
   okButton.addEventListener('click', onOk);
   cancelButton.addEventListener('click', onCancel);
+  headerClose.addEventListener('click', onCancel);
+
+  const refreshAffectedList = () => {
+    while (affectedList.firstChild) affectedList.removeChild(affectedList.firstChild);
+    const members = storyworld.characters.filter((c) => affectedIds.has(c.id));
+    for (const member of members) {
+      const option = el('option', { text: member.char_name || member.id, attrs: { value: member.id } }) as HTMLOptionElement;
+      if (member.id === selectedAffectedId) option.selected = true;
+      affectedList.appendChild(option);
+    }
+    delAffectedBtn.disabled = !selectedAffectedId;
+    updateOkState();
+  };
+
+  affectedList.addEventListener('change', () => {
+    selectedAffectedId = affectedList.value || null;
+    delAffectedBtn.disabled = !selectedAffectedId;
+  });
+
+  addAffectedBtn.addEventListener('click', () => {
+    const pickerOverlay = el('div', { className: 'sw-modal-overlay' });
+    const pickerModal = el('div', { className: 'sw-modal sw-modal-narrow' });
+    const pickerHeader = el('div', { className: 'sw-modal-header' }, el('div', { className: 'sw-modal-title', text: 'Select Cast Member' }));
+    const pickerBody = el('div', { className: 'sw-modal-body sw-modal-body-single' });
+    const pickerPane = el('div', { className: 'sw-modal-pane sw-form' });
+    const pickerFooter = el('div', { className: 'sw-modal-footer' });
+    const pickerOk = el('button', { text: 'Add' });
+    const pickerCancel = el('button', { text: 'Cancel' });
+    const pickerList = el('select', { className: 'sw-listbox', attrs: { size: '6' } }) as HTMLSelectElement;
+
+    const available = storyworld.characters.filter((c) => !affectedIds.has(c.id));
+    for (const member of available) {
+      pickerList.appendChild(el('option', { text: member.char_name || member.id, attrs: { value: member.id } }) as HTMLOptionElement);
+    }
+    pickerOk.disabled = available.length === 0;
+
+    pickerOk.addEventListener('click', () => {
+      const selected = pickerList.value;
+      if (selected) {
+        affectedIds.add(selected);
+        selectedAffectedId = selected;
+        refreshAffectedList();
+      }
+      document.body.removeChild(pickerOverlay);
+    });
+    pickerCancel.addEventListener('click', () => document.body.removeChild(pickerOverlay));
+    pickerOverlay.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        document.body.removeChild(pickerOverlay);
+      }
+      if (event.key === 'Enter' && !pickerOk.disabled) {
+        event.preventDefault();
+        pickerOk.click();
+      }
+    });
+
+    pickerFooter.append(pickerOk, pickerCancel);
+    pickerPane.append(el('label', { text: 'Cast Members' }), pickerList);
+    pickerBody.append(pickerPane);
+    pickerModal.append(pickerHeader, pickerBody, pickerFooter);
+    pickerOverlay.appendChild(pickerModal);
+    document.body.appendChild(pickerOverlay);
+    const cleanupPicker = trapFocus(pickerModal);
+    pickerOverlay.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cleanupPicker();
+        document.body.removeChild(pickerOverlay);
+      }
+    });
+  });
+
+  delAffectedBtn.addEventListener('click', () => {
+    if (!selectedAffectedId) return;
+    affectedIds.delete(selectedAffectedId);
+    selectedAffectedId = null;
+    refreshAffectedList();
+  });
+
+  const updateOkState = () => {
+    okButton.setAttribute('disabled', nameInput.value.trim() ? 'false' : 'true');
+    okButton.disabled = !nameInput.value.trim() || (attributionMode === 'some' && affectedIds.size === 0);
+  };
+  nameInput.addEventListener('input', () => {
+    validation.textContent = '';
+    updateOkState();
+  });
 
   overlay.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
@@ -205,7 +302,7 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      onOk();
+      if (!okButton.disabled) onOk();
     }
   });
 
@@ -222,6 +319,7 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
     el('div', { className: 'sw-field-stack' }, pvalueNote, p2Row),
     validation
   );
+  pane.append(affectedSection);
 
   footer.append(okButton, cancelButton);
   body.append(pane);
@@ -230,4 +328,7 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
   document.body.appendChild(overlay);
 
   const cleanup = trapFocus(modal);
+  syncAttribution();
+  refreshAffectedList();
+  updateOkState();
 }

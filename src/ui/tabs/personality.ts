@@ -86,7 +86,10 @@ export function renderPersonalityTab(store: Store): HTMLElement {
     el('label', { text: 'Depth' }),
     depthInput,
     el('label', { text: 'Default Value' }),
-    defaultInput
+    defaultInput,
+    el('label', { text: 'Perception' }),
+    el('div', { className: 'sw-help-text' }, `pValues: ${selectedProperty && selectedProperty.depth >= 1 ? 'On' : 'Off'}`),
+    el('div', { className: 'sw-help-text' }, `p2: ${selectedProperty && selectedProperty.depth >= 2 ? 'On' : 'Off'}`)
   );
 
   container.append(leftCol, rightCol);
