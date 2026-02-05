@@ -245,11 +245,22 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
     const closePopover = () => {
       popover.remove();
       document.removeEventListener('mousedown', handleOutside);
+      popover.removeEventListener('keydown', handleKeydown);
     };
 
     const handleOutside = (event: MouseEvent) => {
       if (!popover.contains(event.target as Node) && event.target !== addAffectedBtn) {
         closePopover();
+      }
+    };
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closePopover();
+      }
+      if (event.key === 'Enter' && !pickerOk.disabled) {
+        event.preventDefault();
+        pickerOk.click();
       }
     };
 
@@ -267,11 +278,13 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
     pickerFooter.append(pickerOk, pickerCancel);
     popover.append(title, pickerList, pickerFooter);
     document.body.appendChild(popover);
+    pickerList.focus();
 
     const rect = addAffectedBtn.getBoundingClientRect();
     popover.style.top = `${rect.bottom + 6 + window.scrollY}px`;
     popover.style.left = `${rect.left + window.scrollX}px`;
     document.addEventListener('mousedown', handleOutside);
+    popover.addEventListener('keydown', handleKeydown);
   });
 
   delAffectedBtn.addEventListener('click', () => {
