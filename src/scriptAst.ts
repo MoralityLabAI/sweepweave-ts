@@ -6,7 +6,7 @@ export type BoolNode =
 
 export type ScriptNode =
   | { type: 'Constant'; value: number }
-  | { type: 'BNumberProperty'; characterId: string; propertyId: string }
+  | { type: 'BNumberProperty'; characterId: string; propertyId: string; perceivedCharacterId?: string }
   | { type: 'ArithmeticNegation'; child: ScriptNode }
   | { type: 'Proximity'; left: ScriptNode; right: ScriptNode }
   | { type: 'Average'; left: ScriptNode; right: ScriptNode }
@@ -87,7 +87,12 @@ export function serializeScript(node: ScriptNode): any {
     return { type: node.type, value: Number(node.value.toFixed(4)) };
   }
   if (node.type === 'BNumberProperty') {
-    return { type: node.type, characterId: node.characterId, propertyId: node.propertyId };
+    return {
+      type: node.type,
+      characterId: node.characterId,
+      propertyId: node.propertyId,
+      perceivedCharacterId: node.perceivedCharacterId ?? '',
+    };
   }
   if (node.type === 'ArithmeticNegation') {
     return { type: node.type, child: serializeScript(node.child) };
@@ -133,7 +138,12 @@ export function deserializeScript(data: any): ScriptNode {
     case 'Constant':
       return { type: 'Constant', value: Number(data.value ?? 0) };
     case 'BNumberProperty':
-      return { type: 'BNumberProperty', characterId: data.characterId ?? '', propertyId: data.propertyId ?? '' };
+      return {
+        type: 'BNumberProperty',
+        characterId: data.characterId ?? '',
+        propertyId: data.propertyId ?? '',
+        perceivedCharacterId: data.perceivedCharacterId ?? '',
+      };
     case 'ArithmeticNegation':
       return { type: 'ArithmeticNegation', child: deserializeScript(data.child) };
     case 'Proximity':

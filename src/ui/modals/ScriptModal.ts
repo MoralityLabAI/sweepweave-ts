@@ -72,6 +72,7 @@ function createNode(type: ScriptNode['type'], storyworld: Storyworld): ScriptNod
       type: 'BNumberProperty',
       characterId: character?.id ?? '',
       propertyId: property?.id ?? '',
+      perceivedCharacterId: '',
     };
   }
   if (type === 'ArithmeticNegation') {
@@ -127,7 +128,8 @@ function convertElementToNode(element: any, storyworld: Storyworld): ScriptNode 
   if (element instanceof BNumberPointer) {
     const propertyId = element.keyring[0] ?? '';
     const characterId = element.character?.id ?? '';
-    return { type: 'BNumberProperty', characterId, propertyId };
+    const perceivedCharacterId = element.keyring.length > 1 ? element.keyring[1] ?? '' : '';
+    return { type: 'BNumberProperty', characterId, propertyId, perceivedCharacterId };
   }
   if (element instanceof ArithmeticNegationOperator) {
     const child = element.operands[0]
@@ -220,7 +222,11 @@ function convertNodeToElement(node: ScriptNode, storyworld: Storyworld): any {
   }
   if (node.type === 'BNumberProperty') {
     const actor = storyworld.character_directory.get(node.characterId) ?? null;
-    return new BNumberPointer(actor, [node.propertyId]);
+    const keyring = [node.propertyId];
+    if (node.perceivedCharacterId) {
+      keyring.push(node.perceivedCharacterId);
+    }
+    return new BNumberPointer(actor, keyring);
   }
   if (node.type === 'ArithmeticNegation') {
     return new ArithmeticNegationOperator(convertNodeToElement(node.child, storyworld));
@@ -296,6 +302,11 @@ function getNodeLabel(node: ScriptNode, storyworld: Storyworld): string {
     const property = storyworld.authored_properties.find((prop) => prop.id === node.propertyId);
     const characterName = character?.char_name || 'Unknown';
     const propertyName = property?.property_name || 'Property';
+    if (node.perceivedCharacterId) {
+      const perceived = storyworld.character_directory.get(node.perceivedCharacterId);
+      const perceivedName = perceived?.char_name || 'Unknown';
+      return `${characterName} [${propertyName} -> ${perceivedName}]`;
+    }
     return `${characterName} [${propertyName}]`;
   }
   if (node.type === 'IfThen') {
@@ -544,6 +555,7 @@ export function openScriptModal(options: ModalOptions): void {
       } else if (selectedNode.type === 'BNumberProperty') {
         const characterSelect = el('select') as HTMLSelectElement;
         const propertySelect = el('select') as HTMLSelectElement;
+        const perceivedSelect = el('select') as HTMLSelectElement;
         for (const character of storyworld.characters) {
           const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
           if (character.id === selectedNode.characterId) opt.selected = true;
@@ -554,6 +566,14 @@ export function openScriptModal(options: ModalOptions): void {
           if (prop.id === selectedNode.propertyId) opt.selected = true;
           propertySelect.appendChild(opt);
         }
+        const noneOpt = el('option', { text: 'None', attrs: { value: '' } }) as HTMLOptionElement;
+        if (!selectedNode.perceivedCharacterId) noneOpt.selected = true;
+        perceivedSelect.appendChild(noneOpt);
+        for (const character of storyworld.characters) {
+          const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
+          if (character.id === selectedNode.perceivedCharacterId) opt.selected = true;
+          perceivedSelect.appendChild(opt);
+        }
         characterSelect.addEventListener('change', () => {
           ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, characterId: characterSelect.value });
           renderTree();
@@ -562,12 +582,18 @@ export function openScriptModal(options: ModalOptions): void {
           ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, propertyId: propertySelect.value });
           renderTree();
         });
+        perceivedSelect.addEventListener('change', () => {
+          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, perceivedCharacterId: perceivedSelect.value });
+          renderTree();
+        });
         inspector.append(
           el('div', { className: 'sw-section-header', text: 'BNumber Property' }),
           el('label', { text: 'Character' }),
           characterSelect,
           el('label', { text: 'Property' }),
-          propertySelect
+          propertySelect,
+          el('label', { text: 'Perceived Character' }),
+          perceivedSelect
         );
       } else {
         inspector.append(el('div', { className: 'sw-section-header', text: nodeLabels[selectedNode.type] }));
