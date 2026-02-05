@@ -226,21 +226,32 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
   });
 
   addAffectedBtn.addEventListener('click', () => {
-    const pickerOverlay = el('div', { className: 'sw-modal-overlay' });
-    const pickerModal = el('div', { className: 'sw-modal sw-modal-narrow' });
-    const pickerHeader = el('div', { className: 'sw-modal-header' }, el('div', { className: 'sw-modal-title', text: 'Select Cast Member' }));
-    const pickerBody = el('div', { className: 'sw-modal-body sw-modal-body-single' });
-    const pickerPane = el('div', { className: 'sw-modal-pane sw-form' });
-    const pickerFooter = el('div', { className: 'sw-modal-footer' });
+    const existing = document.querySelector('.sw-popover');
+    if (existing) existing.remove();
+
+    const popover = el('div', { className: 'sw-popover' });
+    const title = el('div', { className: 'sw-popover-title', text: 'Select Cast Member' });
+    const pickerList = el('select', { className: 'sw-listbox', attrs: { size: '6' } }) as HTMLSelectElement;
+    const pickerFooter = el('div', { className: 'sw-popover-footer' });
     const pickerOk = el('button', { text: 'Add' });
     const pickerCancel = el('button', { text: 'Cancel' });
-    const pickerList = el('select', { className: 'sw-listbox', attrs: { size: '6' } }) as HTMLSelectElement;
 
     const available = storyworld.characters.filter((c) => !affectedIds.has(c.id));
     for (const member of available) {
       pickerList.appendChild(el('option', { text: member.char_name || member.id, attrs: { value: member.id } }) as HTMLOptionElement);
     }
     pickerOk.disabled = available.length === 0;
+
+    const closePopover = () => {
+      popover.remove();
+      document.removeEventListener('mousedown', handleOutside);
+    };
+
+    const handleOutside = (event: MouseEvent) => {
+      if (!popover.contains(event.target as Node) && event.target !== addAffectedBtn) {
+        closePopover();
+      }
+    };
 
     pickerOk.addEventListener('click', () => {
       const selected = pickerList.value;
@@ -249,34 +260,18 @@ export function openNewPropertyModal(options: NewPropertyModalOptions): void {
         selectedAffectedId = selected;
         refreshAffectedList();
       }
-      document.body.removeChild(pickerOverlay);
+      closePopover();
     });
-    pickerCancel.addEventListener('click', () => document.body.removeChild(pickerOverlay));
-    pickerOverlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        document.body.removeChild(pickerOverlay);
-      }
-      if (event.key === 'Enter' && !pickerOk.disabled) {
-        event.preventDefault();
-        pickerOk.click();
-      }
-    });
+    pickerCancel.addEventListener('click', closePopover);
 
     pickerFooter.append(pickerOk, pickerCancel);
-    pickerPane.append(el('label', { text: 'Cast Members' }), pickerList);
-    pickerBody.append(pickerPane);
-    pickerModal.append(pickerHeader, pickerBody, pickerFooter);
-    pickerOverlay.appendChild(pickerModal);
-    document.body.appendChild(pickerOverlay);
-    const cleanupPicker = trapFocus(pickerModal);
-    pickerOverlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        cleanupPicker();
-        document.body.removeChild(pickerOverlay);
-      }
-    });
+    popover.append(title, pickerList, pickerFooter);
+    document.body.appendChild(popover);
+
+    const rect = addAffectedBtn.getBoundingClientRect();
+    popover.style.top = `${rect.bottom + 6 + window.scrollY}px`;
+    popover.style.left = `${rect.left + window.scrollX}px`;
+    document.addEventListener('mousedown', handleOutside);
   });
 
   delAffectedBtn.addEventListener('click', () => {
