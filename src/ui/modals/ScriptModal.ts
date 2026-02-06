@@ -73,6 +73,7 @@ function createNode(type: ScriptNode['type'], storyworld: Storyworld): ScriptNod
       characterId: character?.id ?? '',
       propertyId: property?.id ?? '',
       perceivedCharacterId: '',
+      perceivedCharacterId2: '',
     };
   }
   if (type === 'ArithmeticNegation') {
@@ -129,7 +130,8 @@ function convertElementToNode(element: any, storyworld: Storyworld): ScriptNode 
     const propertyId = element.keyring[0] ?? '';
     const characterId = element.character?.id ?? '';
     const perceivedCharacterId = element.keyring.length > 1 ? element.keyring[1] ?? '' : '';
-    return { type: 'BNumberProperty', characterId, propertyId, perceivedCharacterId };
+    const perceivedCharacterId2 = element.keyring.length > 2 ? element.keyring[2] ?? '' : '';
+    return { type: 'BNumberProperty', characterId, propertyId, perceivedCharacterId, perceivedCharacterId2 };
   }
   if (element instanceof ArithmeticNegationOperator) {
     const child = element.operands[0]
@@ -226,6 +228,9 @@ function convertNodeToElement(node: ScriptNode, storyworld: Storyworld): any {
     if (node.perceivedCharacterId) {
       keyring.push(node.perceivedCharacterId);
     }
+    if (node.perceivedCharacterId2) {
+      keyring.push(node.perceivedCharacterId2);
+    }
     return new BNumberPointer(actor, keyring);
   }
   if (node.type === 'ArithmeticNegation') {
@@ -305,6 +310,11 @@ function getNodeLabel(node: ScriptNode, storyworld: Storyworld): string {
     if (node.perceivedCharacterId) {
       const perceived = storyworld.character_directory.get(node.perceivedCharacterId);
       const perceivedName = perceived?.char_name || 'Unknown';
+      if (node.perceivedCharacterId2) {
+        const perceived2 = storyworld.character_directory.get(node.perceivedCharacterId2);
+        const perceivedName2 = perceived2?.char_name || 'Unknown';
+        return `${characterName} [${propertyName} -> ${perceivedName} -> ${perceivedName2}]`;
+      }
       return `${characterName} [${propertyName} -> ${perceivedName}]`;
     }
     return `${characterName} [${propertyName}]`;
@@ -556,6 +566,7 @@ export function openScriptModal(options: ModalOptions): void {
         const characterSelect = el('select') as HTMLSelectElement;
         const propertySelect = el('select') as HTMLSelectElement;
         const perceivedSelect = el('select') as HTMLSelectElement;
+        const perceivedSelect2 = el('select') as HTMLSelectElement;
         const perceivedHelp = el('div', { className: 'sw-help-text' });
         for (const character of storyworld.characters) {
           const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
@@ -567,31 +578,39 @@ export function openScriptModal(options: ModalOptions): void {
           if (prop.id === selectedNode.propertyId) opt.selected = true;
           propertySelect.appendChild(opt);
         }
-        const populatePerceivedOptions = () => {
-          while (perceivedSelect.firstChild) perceivedSelect.removeChild(perceivedSelect.firstChild);
+        const populatePerceivedOptions = (selectEl: HTMLSelectElement, selectedId: string) => {
+          while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
           const noneOpt = el('option', { text: 'None', attrs: { value: '' } }) as HTMLOptionElement;
-          if (!selectedNode.perceivedCharacterId) noneOpt.selected = true;
-          perceivedSelect.appendChild(noneOpt);
+          if (!selectedId) noneOpt.selected = true;
+          selectEl.appendChild(noneOpt);
           for (const character of storyworld.characters) {
             const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
-            if (character.id === selectedNode.perceivedCharacterId) opt.selected = true;
-            perceivedSelect.appendChild(opt);
+            if (character.id === selectedId) opt.selected = true;
+            selectEl.appendChild(opt);
           }
         };
         const syncPerceivedAvailability = () => {
           const property = storyworld.authored_properties.find((prop) => prop.id === propertySelect.value);
           const depth = property?.depth ?? 0;
-          const enabled = depth >= 1;
-          perceivedSelect.disabled = !enabled;
-          perceivedHelp.textContent = enabled
-            ? 'pValues available for this property.'
-            : 'pValues unavailable (property depth is 0).';
-          if (!enabled && selectedNode.perceivedCharacterId) {
-            ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, perceivedCharacterId: '' });
+          const p1Enabled = depth >= 1;
+          const p2Enabled = depth >= 2;
+          perceivedSelect.disabled = !p1Enabled;
+          perceivedSelect2.disabled = !p2Enabled;
+          perceivedHelp.textContent = !p1Enabled
+            ? 'pValues unavailable (property depth is 0).'
+            : p2Enabled
+              ? 'pValues and p2 available for this property.'
+              : 'pValues available for this property.';
+          if (!p1Enabled && selectedNode.perceivedCharacterId) {
+            ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, perceivedCharacterId: '', perceivedCharacterId2: '' });
+            renderTree();
+          } else if (!p2Enabled && selectedNode.perceivedCharacterId2) {
+            ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, perceivedCharacterId2: '' });
             renderTree();
           }
         };
-        populatePerceivedOptions();
+        populatePerceivedOptions(perceivedSelect, selectedNode.perceivedCharacterId ?? '');
+        populatePerceivedOptions(perceivedSelect2, selectedNode.perceivedCharacterId2 ?? '');
         syncPerceivedAvailability();
         characterSelect.addEventListener('change', () => {
           ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, characterId: characterSelect.value });
@@ -606,6 +625,10 @@ export function openScriptModal(options: ModalOptions): void {
           ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, perceivedCharacterId: perceivedSelect.value });
           renderTree();
         });
+        perceivedSelect2.addEventListener('change', () => {
+          ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, perceivedCharacterId2: perceivedSelect2.value });
+          renderTree();
+        });
         inspector.append(
           el('div', { className: 'sw-section-header', text: 'BNumber Property' }),
           el('label', { text: 'Character' }),
@@ -614,6 +637,8 @@ export function openScriptModal(options: ModalOptions): void {
           propertySelect,
           el('label', { text: 'Perceived Character' }),
           perceivedSelect,
+          el('label', { text: 'Perceived Character 2' }),
+          perceivedSelect2,
           perceivedHelp
         );
       } else {

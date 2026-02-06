@@ -7,7 +7,7 @@ export type BoolNode =
 
 export type ScriptNode =
   | { type: 'Constant'; value: number }
-  | { type: 'BNumberProperty'; characterId: string; propertyId: string; perceivedCharacterId?: string }
+  | { type: 'BNumberProperty'; characterId: string; propertyId: string; perceivedCharacterId?: string; perceivedCharacterId2?: string }
   | { type: 'ArithmeticNegation'; child: ScriptNode }
   | { type: 'Proximity'; left: ScriptNode; right: ScriptNode }
   | { type: 'Average'; left: ScriptNode; right: ScriptNode }
@@ -40,7 +40,10 @@ export function evaluateScript(node: ScriptNode, context: EvalContext): number {
       const property = context.storyworld.authored_properties.find((prop) => prop.id === node.propertyId);
       const fallback = property?.default_value ?? 0;
       const raw = actor?.bnumber_properties.get(node.propertyId);
-      const keyring = node.perceivedCharacterId ? [node.perceivedCharacterId] : [];
+      const keyring = [
+        ...(node.perceivedCharacterId ? [node.perceivedCharacterId] : []),
+        ...(node.perceivedCharacterId2 ? [node.perceivedCharacterId2] : []),
+      ];
       const value = getPerceptionValue(raw, keyring, fallback);
       return clamp01(value);
     }
@@ -96,6 +99,7 @@ export function serializeScript(node: ScriptNode): any {
       characterId: node.characterId,
       propertyId: node.propertyId,
       perceivedCharacterId: node.perceivedCharacterId ?? '',
+      perceivedCharacterId2: node.perceivedCharacterId2 ?? '',
     };
   }
   if (node.type === 'ArithmeticNegation') {
@@ -147,6 +151,7 @@ export function deserializeScript(data: any): ScriptNode {
         characterId: data.characterId ?? '',
         propertyId: data.propertyId ?? '',
         perceivedCharacterId: data.perceivedCharacterId ?? '',
+        perceivedCharacterId2: data.perceivedCharacterId2 ?? '',
       };
     case 'ArithmeticNegation':
       return { type: 'ArithmeticNegation', child: deserializeScript(data.child) };
