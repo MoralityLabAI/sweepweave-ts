@@ -556,6 +556,7 @@ export function openScriptModal(options: ModalOptions): void {
         const characterSelect = el('select') as HTMLSelectElement;
         const propertySelect = el('select') as HTMLSelectElement;
         const perceivedSelect = el('select') as HTMLSelectElement;
+        const perceivedHelp = el('div', { className: 'sw-help-text' });
         for (const character of storyworld.characters) {
           const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
           if (character.id === selectedNode.characterId) opt.selected = true;
@@ -566,20 +567,39 @@ export function openScriptModal(options: ModalOptions): void {
           if (prop.id === selectedNode.propertyId) opt.selected = true;
           propertySelect.appendChild(opt);
         }
-        const noneOpt = el('option', { text: 'None', attrs: { value: '' } }) as HTMLOptionElement;
-        if (!selectedNode.perceivedCharacterId) noneOpt.selected = true;
-        perceivedSelect.appendChild(noneOpt);
-        for (const character of storyworld.characters) {
-          const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
-          if (character.id === selectedNode.perceivedCharacterId) opt.selected = true;
-          perceivedSelect.appendChild(opt);
-        }
+        const populatePerceivedOptions = () => {
+          while (perceivedSelect.firstChild) perceivedSelect.removeChild(perceivedSelect.firstChild);
+          const noneOpt = el('option', { text: 'None', attrs: { value: '' } }) as HTMLOptionElement;
+          if (!selectedNode.perceivedCharacterId) noneOpt.selected = true;
+          perceivedSelect.appendChild(noneOpt);
+          for (const character of storyworld.characters) {
+            const opt = el('option', { text: character.char_name || character.id, attrs: { value: character.id } }) as HTMLOptionElement;
+            if (character.id === selectedNode.perceivedCharacterId) opt.selected = true;
+            perceivedSelect.appendChild(opt);
+          }
+        };
+        const syncPerceivedAvailability = () => {
+          const property = storyworld.authored_properties.find((prop) => prop.id === propertySelect.value);
+          const depth = property?.depth ?? 0;
+          const enabled = depth >= 1;
+          perceivedSelect.disabled = !enabled;
+          perceivedHelp.textContent = enabled
+            ? 'pValues available for this property.'
+            : 'pValues unavailable (property depth is 0).';
+          if (!enabled && selectedNode.perceivedCharacterId) {
+            ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, perceivedCharacterId: '' });
+            renderTree();
+          }
+        };
+        populatePerceivedOptions();
+        syncPerceivedAvailability();
         characterSelect.addEventListener('change', () => {
           ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, characterId: characterSelect.value });
           renderTree();
         });
         propertySelect.addEventListener('change', () => {
           ast = replaceNodeByPath(ast, selectedPath, { ...selectedNode, propertyId: propertySelect.value });
+          syncPerceivedAvailability();
           renderTree();
         });
         perceivedSelect.addEventListener('change', () => {
@@ -593,7 +613,8 @@ export function openScriptModal(options: ModalOptions): void {
           el('label', { text: 'Property' }),
           propertySelect,
           el('label', { text: 'Perceived Character' }),
-          perceivedSelect
+          perceivedSelect,
+          perceivedHelp
         );
       } else {
         inspector.append(el('div', { className: 'sw-section-header', text: nodeLabels[selectedNode.type] }));
