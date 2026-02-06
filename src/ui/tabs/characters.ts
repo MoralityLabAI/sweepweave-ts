@@ -2,6 +2,7 @@ import { el } from '../dom';
 import { Store, touchStoryworld, getSelectedCharacter } from '../store';
 import { Actor } from '../../Actor';
 import { UUID } from '../../UUID';
+import { getPerceptionValue, normalizePerceptionValue, setPerceptionValue } from '../../perception';
 
 export function renderCharactersTab(store: Store): HTMLElement {
   const state = store.getState();
@@ -73,7 +74,12 @@ export function renderCharactersTab(store: Store): HTMLElement {
     const label = el('span', { text: property.property_name || property.id });
     const range = el('input', { attrs: { type: 'range', min: '-1', max: '1', step: '0.01' } }) as HTMLInputElement;
     const number = el('input', { attrs: { type: 'number', min: '-1', max: '1', step: '0.01' } }) as HTMLInputElement;
-    const currentValue = selectedCharacter?.bnumber_properties.get(property.id) ?? property.default_value;
+    const keyring = selectedCharacter ? Array.from({ length: property.depth }, () => selectedCharacter.id) : [];
+    const currentValue = getPerceptionValue(
+      selectedCharacter?.bnumber_properties.get(property.id),
+      keyring,
+      property.default_value
+    );
     range.value = String(currentValue);
     number.value = String(currentValue);
 
@@ -81,7 +87,20 @@ export function renderCharactersTab(store: Store): HTMLElement {
       const actor = getSelectedCharacter(store.getState());
       if (!actor) return;
       const numeric = Number(value);
-      actor.bnumber_properties.set(property.id, numeric);
+      const castIds = storyworld.characters.map((c) => c.id);
+      if (property.depth <= 0) {
+        actor.bnumber_properties.set(property.id, numeric);
+      } else {
+        const normalized = normalizePerceptionValue(
+          actor.bnumber_properties.get(property.id),
+          property.depth,
+          castIds,
+          property.default_value,
+          actor.id
+        );
+        setPerceptionValue(normalized, keyring, numeric);
+        actor.bnumber_properties.set(property.id, normalized);
+      }
       range.value = String(numeric);
       number.value = String(numeric);
       touchStoryworld(storyworld);

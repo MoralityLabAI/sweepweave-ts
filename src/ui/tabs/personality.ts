@@ -1,6 +1,8 @@
 import { el } from '../dom';
 import { Store, touchStoryworld, getSelectedProperty } from '../store';
 import { openNewPropertyModal } from '../modals/NewPropertyModal';
+import { normalizePerceptionValue } from '../../perception';
+import { possible_attribution_targets } from '../../BNumberBlueprint';
 
 export function renderPersonalityTab(store: Store): HTMLElement {
   const state = store.getState();
@@ -61,6 +63,27 @@ export function renderPersonalityTab(store: Store): HTMLElement {
     className: 'sw-title-input',
   }) as HTMLInputElement;
 
+  const applyPerceptionDepth = (nextDepth: number) => {
+    const prop = getSelectedProperty(store.getState());
+    if (!prop) return;
+    const castIds = storyworld.characters.map((c) => c.id);
+    const targets =
+      prop.attribution_target === possible_attribution_targets.ENTIRE_CAST
+        ? storyworld.characters
+        : prop.affected_characters;
+    for (const actor of storyworld.characters) {
+      if (!targets.includes(actor)) {
+        actor.bnumber_properties.delete(prop.id);
+        continue;
+      }
+      const current = actor.bnumber_properties.get(prop.id) ?? prop.default_value;
+      const nextValue = normalizePerceptionValue(current, nextDepth, castIds, prop.default_value, actor.id);
+      actor.bnumber_properties.set(prop.id, nextValue);
+    }
+    prop.depth = nextDepth;
+    touchStoryworld(storyworld);
+  };
+
   nameInput.addEventListener('input', () => {
     const prop = getSelectedProperty(store.getState());
     if (!prop) return;
@@ -70,14 +93,60 @@ export function renderPersonalityTab(store: Store): HTMLElement {
   depthInput.addEventListener('input', () => {
     const prop = getSelectedProperty(store.getState());
     if (!prop) return;
-    prop.depth = Number(depthInput.value);
-    touchStoryworld(storyworld);
+    const nextDepth = Math.max(0, Math.floor(Number(depthInput.value) || 0));
+    depthInput.value = String(nextDepth);
+    applyPerceptionDepth(nextDepth);
+    syncPerceptionUI();
   });
   defaultInput.addEventListener('input', () => {
     const prop = getSelectedProperty(store.getState());
     if (!prop) return;
     prop.default_value = Number(defaultInput.value);
     touchStoryworld(storyworld);
+  });
+
+  const perceptionLabel = el('label', { text: 'Perception' });
+  const pValuesStatus = el('div', { className: 'sw-help-text' });
+  const p2Status = el('div', { className: 'sw-help-text' });
+  const pToggleRow = el('div', { className: 'sw-row' });
+  const pValuesToggle = el('button', { text: 'Enable pValues' }) as HTMLButtonElement;
+  const p2Toggle = el('button', { text: 'Enable p2' }) as HTMLButtonElement;
+  pToggleRow.append(pValuesToggle, p2Toggle);
+
+  const syncPerceptionUI = () => {
+    const prop = getSelectedProperty(store.getState());
+    const depth = prop?.depth ?? 0;
+    pValuesStatus.textContent = `pValues: ${depth >= 1 ? 'On' : 'Off'}`;
+    p2Status.textContent = `p2: ${depth >= 2 ? 'On' : 'Off'}`;
+    if (!prop) {
+      pValuesToggle.disabled = true;
+      p2Toggle.disabled = true;
+      pValuesToggle.textContent = 'Enable pValues';
+      p2Toggle.textContent = 'Enable p2';
+      return;
+    }
+    pValuesToggle.disabled = false;
+    p2Toggle.disabled = false;
+    pValuesToggle.textContent = depth >= 1 ? 'Clear pValues' : 'Enable pValues';
+    p2Toggle.textContent = depth >= 2 ? 'Clear p2' : 'Enable p2';
+  };
+
+  pValuesToggle.addEventListener('click', () => {
+    const prop = getSelectedProperty(store.getState());
+    if (!prop) return;
+    const nextDepth = prop.depth >= 1 ? 0 : 1;
+    applyPerceptionDepth(nextDepth);
+    depthInput.value = String(nextDepth);
+    syncPerceptionUI();
+  });
+
+  p2Toggle.addEventListener('click', () => {
+    const prop = getSelectedProperty(store.getState());
+    if (!prop) return;
+    const nextDepth = prop.depth >= 2 ? 1 : 2;
+    applyPerceptionDepth(nextDepth);
+    depthInput.value = String(nextDepth);
+    syncPerceptionUI();
   });
 
   rightCol.append(
@@ -87,10 +156,13 @@ export function renderPersonalityTab(store: Store): HTMLElement {
     depthInput,
     el('label', { text: 'Default Value' }),
     defaultInput,
-    el('label', { text: 'Perception' }),
-    el('div', { className: 'sw-help-text' }, `pValues: ${selectedProperty && selectedProperty.depth >= 1 ? 'On' : 'Off'}`),
-    el('div', { className: 'sw-help-text' }, `p2: ${selectedProperty && selectedProperty.depth >= 2 ? 'On' : 'Off'}`)
+    perceptionLabel,
+    pValuesStatus,
+    p2Status,
+    pToggleRow
   );
+
+  syncPerceptionUI();
 
   container.append(leftCol, rightCol);
   return container;

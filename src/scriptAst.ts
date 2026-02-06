@@ -1,4 +1,5 @@
 import { Storyworld } from '../Storyworld';
+import { getPerceptionValue } from './perception';
 
 export type BoolNode =
   | { type: 'Constant'; value: boolean }
@@ -37,7 +38,10 @@ export function evaluateScript(node: ScriptNode, context: EvalContext): number {
     case 'BNumberProperty': {
       const actor = context.storyworld.character_directory.get(node.characterId);
       const property = context.storyworld.authored_properties.find((prop) => prop.id === node.propertyId);
-      const value = actor?.bnumber_properties.get(node.propertyId) ?? property?.default_value ?? 0;
+      const fallback = property?.default_value ?? 0;
+      const raw = actor?.bnumber_properties.get(node.propertyId);
+      const keyring = node.perceivedCharacterId ? [node.perceivedCharacterId] : [];
+      const value = getPerceptionValue(raw, keyring, fallback);
       return clamp01(value);
     }
     case 'ArithmeticNegation': {

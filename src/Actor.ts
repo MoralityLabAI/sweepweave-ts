@@ -10,7 +10,7 @@ export class Actor {
     public id: string = '';
     public char_name: string = '';
     public pronoun: string = '';
-    public bnumber_properties: Map<string, number> = new Map();
+    public bnumber_properties: Map<string, any> = new Map();
     public authored_property_directory: Map<string, BNumberBlueprint> = new Map();
     public storyworld: Storyworld | null = null;
 

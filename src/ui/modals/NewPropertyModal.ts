@@ -1,4 +1,5 @@
 import { el } from '../dom';
+import { normalizePerceptionValue } from '../../perception';
 import { Storyworld } from '../../Storyworld';
 import { BNumberBlueprint, possible_attribution_targets } from '../../BNumberBlueprint';
 import { UUID } from '../../UUID';
@@ -36,22 +37,6 @@ function trapFocus(modal: HTMLElement): () => void {
   return () => modal.removeEventListener('keydown', handler);
 }
 
-function buildPerceptionOnion(defaultValue: number, depth: number, castIds: string[]): any {
-  let onion: any = defaultValue;
-  for (let layer = 0; layer < depth; layer += 1) {
-    const layerMap: Record<string, any> = {};
-    for (const id of castIds) {
-      if (layer === 0) {
-        layerMap[id] = onion;
-      } else {
-        layerMap[id] = JSON.parse(JSON.stringify(onion));
-      }
-    }
-    onion = layerMap;
-  }
-  return onion;
-}
-
 function applyPropertyToActors(
   storyworld: Storyworld,
   property: BNumberBlueprint,
@@ -63,7 +48,7 @@ function applyPropertyToActors(
   }
   for (const actor of storyworld.characters) {
     if (!actorIds.includes(actor.id)) continue;
-    const onion = buildPerceptionOnion(property.default_value, property.depth, castIds);
+    const onion = normalizePerceptionValue(property.default_value, property.depth, castIds, property.default_value, actor.id);
     actor.bnumber_properties.set(property.id, onion);
   }
 }

@@ -164,6 +164,8 @@ export class Storyworld {
                     for (const [key, value] of Object.entries(charData.bnumber_properties)) {
                         if (typeof value === "number") {
                             actor.bnumber_properties.set(key, value);
+                        } else if (value && typeof value === "object") {
+                            actor.bnumber_properties.set(key, JSON.parse(JSON.stringify(value)));
                         }
                     }
                 }
