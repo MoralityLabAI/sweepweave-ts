@@ -18,6 +18,9 @@ describe('StoryworldSerializer', () => {
         storyworld.storyworld_display_mode = 'light';
         storyworld.creation_time = 12345;
         storyworld.modified_time = 67890;
+        storyworld.multiplayer = 3;
+        storyworld.turns = ['char_test1', 'char_test2', 'char_test3'];
+        storyworld.multiplayer_is_explicit = true;
         storyworld.unique_id_seeds = {
             character: 1,
             encounter: 2,
@@ -49,6 +52,8 @@ describe('StoryworldSerializer', () => {
         expect(serializedData.sweepweave_version).toBe('0.1.9');
         expect(serializedData.debug_mode).toBe(true);
         expect(serializedData.display_mode).toBe('light');
+        expect(serializedData.multiplayer).toBe(3);
+        expect(serializedData.turns).toEqual(['char_test1', 'char_test2', 'char_test3']);
         expect(serializedData.creation_time).toBe(12345);
         expect(serializedData.modified_time).toBe(67890);
         expect(serializedData.unique_id_seeds).toEqual({

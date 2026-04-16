@@ -48,6 +48,9 @@ export class Storyworld {
     public creation_time: number = 0;
     public modified_time: number = 0;
     public ifid: string = "";
+    public multiplayer: number = 1;
+    public turns: string[] = [];
+    public multiplayer_is_explicit: boolean = false;
 
     public clear(): void {
         this.character_directory.clear();
@@ -79,6 +82,9 @@ export class Storyworld {
         this.creation_time = 0;
         this.modified_time = 0;
         this.ifid = "";
+        this.multiplayer = 1;
+        this.turns = [];
+        this.multiplayer_is_explicit = false;
     }
 
     public set_as_copy_of(original: Storyworld): void {
@@ -97,6 +103,9 @@ export class Storyworld {
         this.creation_time = original.creation_time;
         this.modified_time = original.modified_time;
         this.ifid = original.ifid;
+        this.multiplayer = original.multiplayer;
+        this.turns = [...original.turns];
+        this.multiplayer_is_explicit = original.multiplayer_is_explicit;
         this.unique_id_seeds = { ...original.unique_id_seeds };
 
         for (const character of original.characters) {
@@ -145,6 +154,9 @@ export class Storyworld {
         this.language = data.language ?? "";
         this.rating = data.rating ?? "";
         this.meta_description = data.meta_description ?? "";
+        this.multiplayer_is_explicit = Object.prototype.hasOwnProperty.call(data, "multiplayer");
+        this.multiplayer = Number.isInteger(data.multiplayer) && data.multiplayer >= 1 ? data.multiplayer : 1;
+        this.turns = Array.isArray(data.turns) ? data.turns.filter((entry: unknown) => typeof entry === "string") : [];
         if (data.about_text && typeof data.about_text === "object" && data.about_text.value) {
             this.about_text = String(data.about_text.value);
         } else {

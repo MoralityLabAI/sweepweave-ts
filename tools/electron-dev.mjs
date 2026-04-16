@@ -54,7 +54,7 @@ if (!ready) {
   process.exit(1);
 }
 
-const electron = spawn('electron', ['-r', 'tsx/register', 'electron/main.ts'], {
+const electron = spawn('electron', ['electron/main.mjs'], {
   stdio: 'inherit',
   shell: true,
   env: { ...process.env, VITE_DEV_SERVER_URL: devServerUrl },

@@ -42,6 +42,10 @@ export class StoryworldSerializer {
         file_data["creation_time"] = storyworld.creation_time;
         file_data["modified_time"] = storyworld.modified_time;
         file_data["IFID"] = storyworld.ifid;
+        if (storyworld.multiplayer_is_explicit || storyworld.multiplayer !== 1 || storyworld.turns.length > 0) {
+            file_data["multiplayer"] = storyworld.multiplayer;
+            file_data["turns"] = [...storyworld.turns];
+        }
         return file_data;
     }
 }

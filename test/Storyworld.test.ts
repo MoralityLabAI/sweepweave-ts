@@ -20,6 +20,8 @@ describe('Storyworld', () => {
         expect(storyworld.authored_properties).toEqual([]);
         expect(storyworld.encounters).toEqual([]);
         expect(storyworld.spools).toEqual([]);
+        expect(storyworld.multiplayer).toBe(1);
+        expect(storyworld.turns).toEqual([]);
         expect(storyworld.unique_id_seeds).toEqual({
             character: 0,
             encounter: 0,
@@ -34,6 +36,8 @@ describe('Storyworld', () => {
         storyworld.ifid = 'test-ifid';
         storyworld.storyworld_title = 'Test Title';
         storyworld.characters.push(new Actor('char1', 'Character 1'));
+        storyworld.multiplayer = 3;
+        storyworld.turns = ['char1', 'char2', 'char3'];
         storyworld.unique_id_seeds.character = 5;
 
         storyworld.clear();
@@ -41,6 +45,8 @@ describe('Storyworld', () => {
         expect(storyworld.ifid).toBe('');
         expect(storyworld.storyworld_title).toBe('');
         expect(storyworld.characters).toEqual([]);
+        expect(storyworld.multiplayer).toBe(1);
+        expect(storyworld.turns).toEqual([]);
         expect(storyworld.unique_id_seeds).toEqual({
             character: 0,
             encounter: 0,
@@ -57,6 +63,9 @@ describe('Storyworld', () => {
         originalStoryworld.storyworld_title = 'Original Title';
         originalStoryworld.storyworld_author = 'Original Author';
         originalStoryworld.sweepweave_version_number = '0.1.0';
+        originalStoryworld.multiplayer = 3;
+        originalStoryworld.turns = ['char_orig1', 'char_orig2', 'char_orig3'];
+        originalStoryworld.multiplayer_is_explicit = true;
         originalStoryworld.unique_id_seeds = { ...originalStoryworld.unique_id_seeds, character: 10 };
 
         const actor1 = new Actor('char_orig1', 'Original Char 1');
@@ -80,6 +89,8 @@ describe('Storyworld', () => {
         expect(storyworld.storyworld_title).toBe('Original Title');
         expect(storyworld.storyworld_author).toBe('Original Author');
         expect(storyworld.sweepweave_version_number).toBe('0.1.0');
+        expect(storyworld.multiplayer).toBe(3);
+        expect(storyworld.turns).toEqual(['char_orig1', 'char_orig2', 'char_orig3']);
         expect(storyworld.unique_id_seeds).toEqual({ ...originalStoryworld.unique_id_seeds, character: 10 });
         
         expect(storyworld.characters.length).toBe(1);
@@ -110,6 +121,8 @@ describe('Storyworld', () => {
             sweepweave_version: '0.0.21',
             debug_mode: true,
             display_mode: 'dark',
+            multiplayer: 3,
+            turns: ['char_a', 'char_b', 'char_c'],
             creation_time: 12345,
             modified_time: 67890,
             unique_id_seeds: {
@@ -130,6 +143,8 @@ describe('Storyworld', () => {
         expect(storyworld.sweepweave_version_number).toBe('0.0.21');
         expect(storyworld.storyworld_debug_mode_on).toBe(true);
         expect(storyworld.storyworld_display_mode).toBe('dark');
+        expect(storyworld.multiplayer).toBe(3);
+        expect(storyworld.turns).toEqual(['char_a', 'char_b', 'char_c']);
         expect(storyworld.creation_time).toBe(12345);
         expect(storyworld.modified_time).toBe(67890);
         expect(storyworld.unique_id_seeds).toEqual({
